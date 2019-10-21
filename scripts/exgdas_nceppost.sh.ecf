@@ -290,7 +290,7 @@ do
     fi
     
 
-    if [ $INLINE_POST = .false. ]; then
+    if [ $INLINE_POST = ".false." ]; then
       $POSTGPSH
     else
       cp $COMOUT/${MASTERFHR} $PGBOUT
@@ -347,12 +347,16 @@ do
         fi
         export PGBOUT=fluxfile
         export FILTER=0
-        $POSTGPSH
-        export err=$?
-        err_chk
-        mv fluxfile $COMOUT/${PREFIX}sfluxgrbf${fhr}.grib2
-        $WGRIB2 -s $COMOUT/${PREFIX}sfluxgrbf${fhr}.grib2 > $COMOUT/${PREFIX}sfluxgrbf${fhr}.grib2.idx
+        FLUXFL=${PREFIX}sfluxgrbf${fhr}.grib2
+        FLUXFLIDX=${PREFIX}sfluxgrbf${fhr}.grib2.idx
+
+        if [ $INLINE_POST = ".false." ]; then
+          $POSTGPSH
+          export err=$?;  err_chk
+          mv fluxfile $COMOUT/${FLUXFL}
         fi
+        $WGRIB2 -s $COMOUT/${FLUXFL} > $COMOUT/${FLUXFLIDX}
+      fi
 
       if test "$SENDDBN" = 'YES' -a  \( "$RUN" = 'gdas' \) -a `expr $fhr % 3` -eq 0
       then
