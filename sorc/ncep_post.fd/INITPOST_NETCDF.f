@@ -206,7 +206,7 @@
       else
        if(me==0)print*,'ak5= ',ak5
       end if 
-      Status=nf90_get_att(ncid3d,nf90_global,'sf_surface_physi', &
+      Status=nf90_get_att(ncid3d,nf90_global,'land_surface_model', &
              iSF_SURFACE_PHYSICS)
       if(Status/=0)then
        print*,'sf_surface_physi not found; assigning to 2'
