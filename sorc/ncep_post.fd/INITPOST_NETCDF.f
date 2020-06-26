@@ -61,10 +61,11 @@
               up_heli_max,up_heli_min,up_heli_max03,up_heli_min03,rel_vort_max01,u10max, v10max,  &
               avgedir,avgecan,avgetrans,avgesnow,avgprec_cont,avgcprate_cont,rel_vort_max, &
               avisbeamswin,avisdiffswin,airbeamswin,airdiffswin,refdm10c_max,wspd10max, &
-              alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg 
+              alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg, &
+              ti 
       use soil,  only: sldpth, sh2o, smc, stc
       use masks, only: lmv, lmh, htm, vtm, gdlat, gdlon, dx, dy, hbm2, sm, sice
-      use physcons,   only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
+      use physcons_post, only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
                             eps => con_eps, epsm1 => con_epsm1
       use params_mod, only: erad, dtr, tfrz, h1, d608, rd, p1000, capa,pi
       use lookup_mod, only: thl, plq, ptbl, ttbl, rdq, rdth, rdp, rdthe, pl, qs0, sqs, sthe,    &
@@ -112,6 +113,7 @@
       integer            :: Status, fldsize, fldst, recn, recn_vvel
       character             startdate*19,SysDepInfo*80,cgar*1
       character             startdate2(19)*4
+      logical            :: read_lonlat=.true.
 ! 
 !     NOTE: SOME INTEGER VARIABLES ARE READ INTO DUMMY ( A REAL ). THIS IS OK
 !     AS LONG AS REALS AND INTEGERS ARE THE SAME SIZE.
@@ -119,7 +121,7 @@
 !     ALSO, EXTRACT IS CALLED WITH DUMMY ( A REAL ) EVEN WHEN THE NUMBERS ARE
 !     INTEGERS - THIS IS OK AS LONG AS INTEGERS AND REALS ARE THE SAME SIZE.
       LOGICAL RUNB,SINGLRST,SUBPOST,NEST,HYDRO,IOOMG,IOALL
-      logical, parameter :: debugprint = .true., zerout = .false.
+      logical, parameter :: debugprint = .false., zerout = .false.
 !     logical, parameter :: debugprint = .true.,  zerout = .false.
       logical :: convert_rad_to_deg=.false.
       CHARACTER*32 varcharval 
@@ -517,10 +519,28 @@
       end if
  101  format(T13,i4,1x,i2,1x,i2,1x,i2,1x,i2)
       print*,'idate= ',idate(1:5)
-! get longitude 
+
+! Jili Dong check output format for coordinate reading
       Status=nf90_inq_varid(ncid3d,'grid_xt',varid)
       Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
-      if(debugprint)print*,'number of dim for gdlon ',numDims
+      if(numDims==1) then
+        read_lonlat=.true.
+      else
+        read_lonlat=.false.
+      end if
+      
+
+! Jili Dong add support for new write component output
+! get longitude 
+      if (read_lonlat) then
+        Status=nf90_inq_varid(ncid3d,'lon',varid)
+        Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
+        if(debugprint)print*,'number of dim for gdlon ',numDims
+      else
+        Status=nf90_inq_varid(ncid3d,'grid_xt',varid)
+        Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
+        if(debugprint)print*,'number of dim for gdlon ',numDims
+      end if
       if(numDims==1)then
         Status=nf90_get_var(ncid3d,varid,glon1d)  
         do j=jsta,jend
@@ -530,6 +550,18 @@
         end do
         lonstart = nint(glon1d(1)*gdsdegr)
         lonlast  = nint(glon1d(im)*gdsdegr)
+
+! Jili Dong add support for regular lat lon (2019/03/22) start
+       if (MAPTYPE .eq. 0) then
+        if(lonstart<0.)then
+         lonstart=lonstart+360.*gdsdegr
+        end if
+        if(lonlast<0.)then
+         lonlast=lonlast+360.*gdsdegr
+        end if
+       end if
+! Jili Dong add support for regular lat lon (2019/03/22) end 
+
       else if(numDims==2)then
         Status=nf90_get_var(ncid3d,varid,dummy)
         if(maxval(abs(dummy))<2.0*pi)convert_rad_to_deg=.true. 
@@ -567,10 +599,17 @@
 
       end if
       print*,'lonstart,lonlast ',lonstart,lonlast 
+! Jili Dong add support for new write component output
 ! get latitude
-      Status=nf90_inq_varid(ncid3d,'grid_yt',varid)
-      Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
-      if(debugprint)print*,'number of dim for gdlat ',numDims
+      if (read_lonlat) then
+        Status=nf90_inq_varid(ncid3d,'lat',varid)
+        Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
+        if(debugprint)print*,'number of dim for gdlat ',numDims
+      else
+        Status=nf90_inq_varid(ncid3d,'grid_yt',varid)
+        Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
+        if(debugprint)print*,'number of dim for gdlat ',numDims
+      end if
       if(numDims==1)then
         Status=nf90_get_var(ncid3d,varid,glat1d)
         do j=jsta,jend
@@ -745,34 +784,35 @@
       HBM2 = 1.0
 
 ! start reading 3d netcdf output
-      do l=1,lm
+!      do l=1,lm
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(1) &
-       ,l,uh(1,jsta_2l,l))
+       ,lm,uh(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(2) &
-       ,l,vh(1,jsta_2l,l))
+       ,lm,vh(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(3) &
-       ,l,q(1,jsta_2l,l))
+       ,lm,q(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(4) &
-       ,l,t(1,jsta_2l,l))
+       ,lm,t(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(5) &
-       ,l,o3(1,jsta_2l,l))
+       ,lm,o3(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(7) &
-       ,l,wh(1,jsta_2l,l))
+       ,lm,wh(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(8) &
-       ,l,qqw(1,jsta_2l,l))   
+       ,lm,qqw(1,jsta_2l,1))   
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(9) &
-       ,l,dpres(1,jsta_2l,l))
+       ,lm,dpres(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(10) &
-       ,l,buf3d(1,jsta_2l,l))
+       ,lm,buf3d(1,jsta_2l,1))
+       do l=1,lm
        do j=jsta,jend
          do i=1,im
             cwm(i,j,l)=spval
@@ -795,22 +835,24 @@
 !           if(t(i,j,l)>1000.)print*,'bad T ',t(i,j,l)
          enddo
        enddo
+       enddo
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(11) &
-       ,l,qqi(1,jsta_2l,l))
+       ,lm,qqi(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(12) &
-       ,l,qqr(1,jsta_2l,l))
+       ,lm,qqr(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(13) &
-       ,l,qqs(1,jsta_2l,l))
+       ,lm,qqs(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(14) &
-       ,l,qqg(1,jsta_2l,l))
+       ,lm,qqg(1,jsta_2l,1))
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(15) &
-       ,l,cfr(1,jsta_2l,l))
+       ,lm,cfr(1,jsta_2l,1))
 ! calculate CWM from FV3 output
+       do l=1,lm
        do j=jsta,jend
          do i=1,im
             cwm(i,j,l)=qqg(i,j,l)+qqs(i,j,l)+qqr(i,j,l)+qqi(i,j,l)+qqw(i,j,l)
@@ -1214,13 +1256,13 @@
 !      end do
 
       VarName='refl_10cm'
-      do l=1,lm
+!      do l=1,lm
         call read_netcdf_3d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
         ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
-        ,l,REF_10CM(1,jsta_2l,l))
-       if(debugprint)print*,'sample ',VarName,'isa,jsa,l =' &
-          ,REF_10CM(isa,jsa,l),isa,jsa,l
-      enddo
+        ,lm,REF_10CM(1,jsta_2l,1))
+!       if(debugprint)print*,'sample ',VarName,'isa,jsa,l =' &
+!          ,REF_10CM(isa,jsa,l),isa,jsa,l
+!      enddo
 
       VarName='land' 
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
@@ -1315,7 +1357,11 @@
           qwbs(i,j)  = SPVAL ! GFS does not have inst latent heat flux
 !assign sst
           if (sm(i,j) /= 0.0) then
-             sst(i,j) = ths(i,j) * (pint(i,j,lp1)/p1000)**capa
+            if (sice(i,j) >= 0.15) then
+              sst(i,j) = 271.4
+            else
+              sst(i,j) = ths(i,j) * (pint(i,j,lp1)/p1000)**capa
+            endif
           else
               sst(i,j) = spval
           endif
@@ -1674,6 +1720,26 @@
       VarName='cpofp'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,sr)
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=1,im
+          if(sr(i,j) /= spval) then
+!set range within (0,1)
+            sr(i,j)=min(1.,max(0.,sr(i,j)))
+          endif
+        enddo
+      enddo
+
+! sea ice skin temperature
+      VarName='tisfc'
+      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,ti)
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=1,im
+          if (sice(i,j) == spval .or. sice(i,j) == 0.) ti(i,j)=spval
+        enddo
+      enddo
 
 ! vegetation fraction in fraction. using nemsio
       VarName='veg'
@@ -1807,11 +1873,12 @@
       VarName='soilt1'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,stc(1,jsta_2l,1))
-!     mask water areas
+!     mask open water areas, combine with sea ice tmp
 !$omp parallel do private(i,j)
       do j=jsta,jend
         do i=1,im
-          if (sm(i,j) /= 0.0) stc(i,j,1) = spval
+          if (sm(i,j) == 1.0 .and. sice(i,j) ==0.) stc(i,j,1) = spval
+          !if (sm(i,j) /= 0.0) stc(i,j,1) = spval
         enddo
       enddo
      if(debugprint)print*,'sample l','stc',' = ',1,stc(isa,jsa,1)
@@ -1819,11 +1886,12 @@
       VarName='soilt2'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,stc(1,jsta_2l,2))
-!     mask water areas
+!     mask open water areas, combine with sea ice tmp
 !$omp parallel do private(i,j)
       do j=jsta,jend
         do i=1,im
-          if (sm(i,j) /= 0.0) stc(i,j,2) = spval
+          if (sm(i,j) == 1.0 .and. sice(i,j) ==0.) stc(i,j,2) = spval
+          !if (sm(i,j) /= 0.0) stc(i,j,2) = spval
         enddo
       enddo
      if(debugprint)print*,'sample stc = ',1,stc(isa,jsa,2)
@@ -1831,11 +1899,12 @@
       VarName='soilt3'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,stc(1,jsta_2l,3))
-!     mask water areas
+!     mask open water areas, combine with sea ice tmp
 !$omp parallel do private(i,j)
       do j=jsta,jend
         do i=1,im
-          if (sm(i,j) /= 0.0) stc(i,j,3) = spval
+          if (sm(i,j) == 1.0 .and. sice(i,j) ==0.) stc(i,j,3) = spval 
+          !if (sm(i,j) /= 0.0) stc(i,j,3) = spval
         enddo
       enddo
      if(debugprint)print*,'sample stc = ',1,stc(isa,jsa,3)
@@ -1843,11 +1912,12 @@
       VarName='soilt4'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,stc(1,jsta_2l,4))
-!     mask water areas
+!     mask open water areas, combine with sea ice tmp
 !$omp parallel do private(i,j)
       do j=jsta,jend
         do i=1,im
-          if (sm(i,j) /= 0.0) stc(i,j,4) = spval
+          if (sm(i,j) == 1.0 .and. sice(i,j) ==0.) stc(i,j,4) = spval
+          !if (sm(i,j) /= 0.0) stc(i,j,4) = spval
         enddo
       enddo
      if(debugprint)print*,'sample stc = ',1,stc(isa,jsa,4)
@@ -2741,7 +2811,7 @@
 
       subroutine read_netcdf_3d_scatter(me,ncid,ifhr,im,jm,jsta,jsta_2l &
       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
-      ,l,buf)
+      ,lm,buf)
 
       use netcdf
       implicit none
@@ -2749,39 +2819,52 @@
       character(len=20),intent(in) :: VarName
       real,intent(in)    :: spval
       integer,intent(in) :: me,ncid,ifhr,im,jm,jsta_2l,jend_2u,jsta, &
-                            MPI_COMM_COMP,l
+                            MPI_COMM_COMP,lm
       integer,intent(in) :: ICNT(0:1023), IDSP(0:1023)
-      real,intent(out)   :: buf(im,jsta_2l:jend_2u)
-      integer            :: iret,i,j,jj,varid
-      real dummy(im,jm),dummy2(im,jm)
+      real,intent(out)   :: buf(im,jsta_2l:jend_2u,lm)
+      integer            :: iret,i,j,jj,varid,l
+      real dummy(im,jm,lm),dummy2(im,jm,lm)
       real,parameter     :: spval_netcdf=-1.e+10
+      real               :: fill_value
+      real,parameter     :: small=1.E-6
 
       if(me == 0) then
         iret = nf90_inq_varid(ncid,trim(varname),varid)
+        iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
+        if (iret /= 0) fill_value = spval_netcdf
         !print*,stat,varname,varid
-        iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,l,ifhr/), &
-             count=(/im,jm,1,1/))
+        iret = nf90_get_var(ncid,varid,dummy2)
+!        iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,l,ifhr/), &
+!             count=(/im,jm,1,1/))
         if (iret /= 0) then
-          print*,VarName,l," not found -Assigned missing values"
+          print*,VarName," not found -Assigned missing values"
+          do l=1,lm
+!$omp parallel do private(i,j)
           do j=1,jm
             do i=1,im
-              dummy(i,j) = spval
+              dummy(i,j,l) = spval
             end do
           end do
+          end do
         else
+          do l=1,lm
+!$omp parallel do private(i,j,jj)
           do j=1,jm
 !            jj=jm-j+1
             jj=j
             do i=1,im
-              dummy(i,j)=dummy2(i,jj)
-              if(dummy(i,j)==spval_netcdf)dummy(i,j)=spval
+              dummy(i,j,l)=dummy2(i,jj,l)
+              if(abs(dummy(i,j,l)-fill_value)<small)dummy(i,j,l)=spval
             end do
+           end do
            end do
         end if
       end if 
 
-      call mpi_scatterv(dummy(1,1),icnt,idsp,mpi_real &
-                    ,buf(1,jsta),icnt(me),mpi_real,0,MPI_COMM_COMP,iret)
+      do l=1,lm
+      call mpi_scatterv(dummy(1,1,l),icnt,idsp,mpi_real &
+                    ,buf(1,jsta,l),icnt(me),mpi_real,0,MPI_COMM_COMP,iret)
+      end do
 
       end subroutine read_netcdf_3d_scatter
 
@@ -2800,34 +2883,35 @@
       integer            :: iret,i,j,jj,varid
       real,parameter     :: spval_netcdf=9.99e+20
 ! dong for hgtsfc 2d var but with 3d missing value
-      real,parameter     :: spval_netcdf_3d=-1.e+10
+      real,parameter     :: spval_netcdf_3d=-1.e+10 
+      real,parameter     :: small=1.E-6
+      real               :: fill_value
       real dummy(im,jm),dummy2(im,jm)
 
       if(me == 0) then
         iret = nf90_inq_varid(ncid,trim(varname),varid)
+        iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
+        if (iret /= 0) fill_value = spval_netcdf
         !print*,stat,varname,varid
-        iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,ifhr/), &
-             count=(/im,jm,1/))
+        iret = nf90_get_var(ncid,varid,dummy2)
+        !iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,ifhr/), &
+        !     count=(/im,jm,1/))
         if (iret /= 0) then
           print*,VarName, " not found -Assigned missing values"
+!$omp parallel do private(i,j)
           do j=1,jm
             do i=1,im
               dummy(i,j) = spval
             end do
           end do
         else
+!$omp parallel do private(i,j,jj)
           do j=1,jm
 !            jj=jm-j+1
             jj=j
             do i=1,im
               dummy(i,j)=dummy2(i,jj)
-! dong for hgtsfc and pressfc
-              if (trim(varname) .eq. "hgtsfc" .or. trim(varname)  &
-                 .eq. "pressfc") then                                   
-                if(abs(dummy(i,j)-spval_netcdf_3d)<0.1)dummy(i,j)=spval
-              else
-                if(abs(dummy(i,j)-spval_netcdf)<0.1)dummy(i,j)=spval
-              end if
+              if(abs(dummy2(i,jj)-fill_value)<small)dummy(i,j)=spval
             end do
            end do
         end if

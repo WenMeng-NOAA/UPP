@@ -52,7 +52,7 @@
 !   Language: Fortran 90
 !
 !$$$
-    use physcons, only: con_cp, con_g, con_rd, con_rocp
+    use physcons_post, only: con_cp, con_g, con_rd, con_rocp
 !
     implicit none
     integer,intent(in):: km
@@ -206,7 +206,7 @@
 !   Language: Fortran 90
 !
 !$$$
-    use physcons, only: con_rog
+    use physcons_post, only: con_rog
     implicit none
     integer,intent(in):: km,kpv
     real,intent(in),dimension(km):: pvu,h,t,p,u,v
@@ -409,7 +409,7 @@ end subroutine
 !   Language: Fortran 90
 !
 !$$$
-    use physcons, only: con_rog
+    use physcons_post, only: con_rog
     implicit none
     integer,intent(in):: km
     real,intent(in),dimension(km):: p,u,v,t,h
@@ -419,7 +419,7 @@ end subroutine
     integer klim(2),k,kd,ktp
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  find tropopause level
-    call rsearch1(km-2,p(2),2,ptplim(1),klim(1))
+    call rsearch1(km-2,p(2),2,ptplim,klim)
     klim(1)=klim(1)+1
     klim(2)=klim(2)+2
     ! klim(1) > klim(2) or loops does not run ; klim(2) has a
@@ -435,7 +435,7 @@ end subroutine
 !        call rsearch1(km-k-1,h(k+1),1,h(k)+hd,kd)
 	call rsearch1(k-2,h(2),1,h(k)+hd,kd)
 !        td=t(k+kd)+(h(k)+hd-h(k+kd))/(h(k+kd+1)-h(k+kd))*(t(k+kd+1)-t(k+kd))
-	td=t(kd+2)+(h(k)+hd-h(2+kd))/(h(kd+1)-h(2+kd))*(t(kd+1)-t(2+kd))
+        td=t(kd+2)+(h(k)+hd-h(2+kd))/(h(kd+1)-h(2+kd))*(t(kd+1)-t(2+kd))
         gami=(t(k)-td)/hd
         if(gami.le.gamtp) then
           ktp=k
@@ -509,7 +509,7 @@ end subroutine
 !   Language: Fortran 90
 !
 !$$$
-    use physcons, only: con_rog
+    use physcons_post, only: con_rog
     implicit none
     integer,intent(in):: km
     real,intent(in),dimension(km):: p,u,v,t,h
@@ -519,7 +519,7 @@ end subroutine
     real spd(km),spdmw,wmw,dhd,dhu,shrd,shru,dhmw,ub,vb,spdb
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  find maximum wind level
-    call rsearch1(km,p(1),2,pmwlim(1),klim(1))
+    call rsearch1(km,p(1),2,pmwlim,klim)
 !    klim(1)=klim(1)+1
     klim(2)=klim(2)+1
 !    spd(klim(1):klim(2))=sqrt(u(klim(1):klim(2))**2+v(klim(1):klim(2))**2)
@@ -603,7 +603,7 @@ subroutine mptgen(mpirank,mpisize,nd,jt1,jt2,j1,j2,jx,jm,jn)
 !   Language: Fortran 90
 !
 !$$$
-  use machine,only:kint_mpi
+  use machine_post,only:kint_mpi
   implicit none
   integer(kint_mpi),intent(in):: mpirank,mpisize,nd,jt1(nd),jt2(nd)
   integer(kint_mpi),intent(out):: j1(nd),j2(nd),jx(nd),jm(nd),jn(nd)
@@ -720,7 +720,7 @@ subroutine mptranr4(mpicomm,mpisize,im,ida,idb,&
 !   language: fortran 90
 !
 !$$$
-  use machine,only:kint_mpi
+  use machine_post,only:kint_mpi
   implicit none
   include 'mpif.h'
   integer(kint_mpi),intent(in):: mpicomm,mpisize

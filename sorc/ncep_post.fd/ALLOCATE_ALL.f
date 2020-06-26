@@ -19,6 +19,7 @@
 !   15-07-21  Jun Wang - Add scavenging for DU, SS, OC, BC, remove 
 !                        SU diagnostic fields
 !   19-07-24  Li(Kate) Zhang - Merge and update NGAC UPP for FV3-Chem
+!   19-11-23  Wen Meng - Add sea ice skin T
 !
 ! USAGE:    CALL MPI_FIRST
 !   INPUT ARGUMENT LIST:
@@ -89,6 +90,7 @@
       allocate(F_rain(im,jsta_2l:jend_2u,lm))
       allocate(F_RimeF(im,jsta_2l:jend_2u,lm))
       allocate(QQW(im,jsta_2l:jend_2u,lm))
+      allocate(QRIMEF(im,jsta_2l:jend_2u,lm))
       allocate(QQI(im,jsta_2l:jend_2u,lm))
       allocate(QQR(im,jsta_2l:jend_2u,lm))
       allocate(QQS(im,jsta_2l:jend_2u,lm))
@@ -114,6 +116,9 @@
       allocate(radius_cloud(im,jsta_2l:jend_2u,lm))
       allocate(radius_ice(im,jsta_2l:jend_2u,lm))
       allocate(radius_snow(im,jsta_2l:jend_2u,lm))
+! KRS: HWRF Addition for thompson reflectivity
+! or non-ferrier physics. wrf-derived
+      allocate(REFL_10CM(im,jsta_2l:jend_2u,lm))
 !GFS FIELD
       allocate(o3(im,jsta_2l:jend_2u,lm))
       allocate(o(im,jsta_2l:jend_2u,lm))
@@ -235,6 +240,7 @@
       allocate(ths(im,jsta_2l:jend_2u))
       allocate(sno(im,jsta_2l:jend_2u))
       allocate(snonc(im,jsta_2l:jend_2u))
+      allocate(ti(im,jsta_2l:jend_2u))
 ! Time-averaged fileds
       allocate(u10mean(im,jsta_2l:jend_2u))
       allocate(v10mean(im,jsta_2l:jend_2u))
@@ -402,6 +408,8 @@
       allocate(cldwork(im,jsta_2l:jend_2u))
       allocate(gtaux(im,jsta_2l:jend_2u))
       allocate(gtauy(im,jsta_2l:jend_2u))
+      allocate(cd10(im,jsta_2l:jend_2u))
+      allocate(ch10(im,jsta_2l:jend_2u))
       allocate(mdltaux(im,jsta_2l:jend_2u))
       allocate(mdltauy(im,jsta_2l:jend_2u))
       allocate(runoff(im,jsta_2l:jend_2u))
