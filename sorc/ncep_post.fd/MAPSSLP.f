@@ -10,7 +10,7 @@
 !
 !-----------------------------------------------------------------------
       use ctlblk_mod, only: jsta, jend, spl, smflag, lm, im, jsta_2l, jend_2u, &
-                            lsm, jm, grib
+                            lsm, jm, grib, spval
       use gridspec_mod, only: maptype, dxval
       use vrbls3d, only: pmid, t, pint
       use vrbls2d, only: pslp, fis
@@ -43,9 +43,12 @@
 !$omp parallel do private(i,j)
         DO J=JSTA,JEND
           DO I=1,IM
-            if(SPL(L) == 70000.)THEN
+            if(SPL(L) == 70000. .and. TPRES(I,J,L) <spval)THEN
               T700(i,j)  = TPRES(I,J,L) 
               TH700(I,J) = T700(I,J)*(P1000/70000.)**CAPA
+            else
+              T700(i,j)  = spval
+              TH700(I,J) = spval
             endif
           ENDDO
         ENDDO
@@ -54,10 +57,8 @@
 
 
 ! smooth 700 mb temperature first
-       if(MAPTYPE.EQ.6) then
-         if(grib=='grib1') then
-            dxm = (DXVAL / 360.)*(ERAD*2.*pi)/1000. ! [m]
-         else if (grib=='grib2') then
+       if(MAPTYPE==6) then
+         if(grib=='grib2') then
             dxm=(DXVAL / 360.)*(ERAD*2.*pi)/1.d6  ! [mm]
          endif
        else
@@ -76,13 +77,14 @@
         ENDIF
           ii=im/2
           jj=(jsta+jend)/2
-          if(i.eq.ii.and.j.eq.jj)                              &
-             print*,'Debug TH700(i,j), i,j',TH700(i,j), i,j
+!          if(i==ii.and.j==jj)                              &
+!             print*,'Debug TH700(i,j), i,j',TH700(i,j), i,j
 
        DO J=JSTA,JEND
          DO I=1,IM
+         if(T700(I,J) <spval) then
          T700(I,J) = TH700(I,J)*(70000./P1000)**CAPA
-          IF (T700(I,J).GT.100.) THEN
+          IF (T700(I,J)>100.) THEN
            TSFCNEW = T700(I,J)*(PMID(I,J,LM)/70000.)**EXPo
 !     effective sfc T based on 700 mb temp
           ELSE
@@ -92,6 +94,11 @@
               ((TSFCNEW+LAPSES*FIS(I,J)*GI)/TSFCNEW)**EXPINV
 !          print*,'PSLP(I,J),I,J',PSLP(I,J),I,J
            GRID1(I,J)=PSLP(I,J)
+         else
+           PSLP(I,J) = spval
+           grid1(I,J) = spval
+         endif
+
          ENDDO
        ENDDO
 

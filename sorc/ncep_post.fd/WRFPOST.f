@@ -1,65 +1,68 @@
-      PROGRAM WRFPOST
-!$$$  MAIN PROGRAM DOCUMENTATION BLOCK
+!> @file
 !                .      .    .     
-! MAIN PROGRAM: WRFPOST
-!   PRGMMR: BALDWIN          ORG: NSSL/SPC    DATE: 2002-06-18
-!     
-! ABSTRACT:  
-!     THIS PROGRAM DRIVES THE EXTERNAL WRF POST PROCESSOR.
-!     
-! PROGRAM HISTORY LOG:
-!   92-12-24  RUSS TREADON - CODED ETAPOST AS STAND ALONE CODE
-!   98-05-29  BLACK - CONVERSION OF POST CODE FROM 1-D TO 2-D
-!   00-02-04  JIM TUCCILLO - PARALLEL VERSION VIA MPI
-!   01-02-15  JIM TUCCILLO - MANY COMMON BLOCKS REPLACED WITH MODULES
-!             TO SUPPORT FORTRAN "ALLOCATE"s FOR THE EXACT SIZE OF THE 
-!             ARRAYS NEEDED BASED ON THE NUMBER OF MPI TASKS.
-!             THIS WAS DONE TO REDUCE THE ADDRESS SPACE THAT THE LOADER SEES.
-!             THESE CHANGES WERE NECESSARY FOR RUNNING LARGER DOMAINS SUCH AS
-!             12 KMS
-!   01-06-15  JIM TUCCILLO - ADDED ASYNCRONOUS I/O CAPABILITY. IF THERE ARE MORE
-!             THAN ONE MPI TASK, THE IO WILL BE DONE AYNCHRONOUSLY BY THE LAST
-!             MPI TASK.
-!   02-06-17  MIKE BALDWIN - CONVERT ETAPOST TO WRFPOST.  INCLUDE WRF I/O API
-!             FOR INPUT OF MODEL DATA.  MODIFY CODE TO DEAL WITH C-GRID
-!             DATA.  STREAMLINE OUTPUT TO A CALL OF ONE SUBROUTINE INSTEAD OF THREE.
-!             REPLACE COMMON BLOCKS WITH A LIMITED NUMBER OF MODULES.
-!   04-01-01  H CHUANG - ADDED NMM IO MODULE AND BINARY OPTIONS
-!   05-07-08  Binbin Zhou: Aadded RSM model
-!   05-12-05  H CHUANG - ADDED CAPABILITY TO OUTPUT OFF-HOUR FORECAST WHICH HAS
-!               NO IMPACTS ON ON-HOUR FORECAST
-!   06-02-20  CHUANG, BLACK, AND ROGERS - FINALIZED COMPLETE LIST OF NAM
-!             OPERATIONAL PRODUCTS FROM WRF
-!   06-02-27  H CHUANG - MODIFIED TO POST MULTIPLE
-!             FORECAST HOURS IN ONE EXECUTION
-!   06-03-03  H CHUANG - ADDED PARRISH'S MPI BINARY IO TO READ BINARY
-!             WRF FILE AS RANDOM ASSCESS SO THAT VARIABLES IN WRF OUTPUT
-!             DON'T HAVE TO BE READ IN IN SPECIFIC ORDER 
-!   11-02-06  J WANG  - ADD GRIB2 OPTION
-!   11-12-14  SARAH LU - ADD THE OPTION TO READ NGAC AER FILE 
-!   12-01-28  J WANG  - Use post available fields in xml file for grib2
-!   13-06-25  S MOORTHI - add gocart_on logical option to save memory
-!   13-10-03  J WANG  - add option for po to be pascal, and 
-!                       add gocart_on,d3d_on and popascal to namelist
-!  
-! USAGE:    WRFPOST
-!   INPUT ARGUMENT LIST:
-!     NONE     
-!
-!   OUTPUT ARGUMENT LIST: 
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!       NONE
-!     LIBRARY:
-!       COMMON - CTLBLK
-!                RQSTFLD
-!     
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN 90
-!     MACHINE : IBM RS/6000 SP
-!$$$  
+!> MAIN PROGRAM: WRFPOST
+!!   PRGMMR: BALDWIN          ORG: NSSL/SPC    DATE: 2002-06-18
+!!     
+!! ABSTRACT:  
+!!     THIS PROGRAM DRIVES THE EXTERNAL WRF POST PROCESSOR.
+!!     
+!! PROGRAM HISTORY LOG:
+!!   92-12-24  RUSS TREADON - CODED ETAPOST AS STAND ALONE CODE
+!!   98-05-29  BLACK - CONVERSION OF POST CODE FROM 1-D TO 2-D
+!!   00-02-04  JIM TUCCILLO - PARALLEL VERSION VIA MPI
+!!   01-02-15  JIM TUCCILLO - MANY COMMON BLOCKS REPLACED WITH MODULES
+!!             TO SUPPORT FORTRAN "ALLOCATE"s FOR THE EXACT SIZE OF THE 
+!!             ARRAYS NEEDED BASED ON THE NUMBER OF MPI TASKS.
+!!             THIS WAS DONE TO REDUCE THE ADDRESS SPACE THAT THE LOADER SEES.
+!!             THESE CHANGES WERE NECESSARY FOR RUNNING LARGER DOMAINS SUCH AS
+!!             12 KMS
+!!   01-06-15  JIM TUCCILLO - ADDED ASYNCRONOUS I/O CAPABILITY. IF THERE ARE MORE
+!!             THAN ONE MPI TASK, THE IO WILL BE DONE AYNCHRONOUSLY BY THE LAST
+!!             MPI TASK.
+!!   02-06-17  MIKE BALDWIN - CONVERT ETAPOST TO WRFPOST.  INCLUDE WRF I/O API
+!!             FOR INPUT OF MODEL DATA.  MODIFY CODE TO DEAL WITH C-GRID
+!!             DATA.  STREAMLINE OUTPUT TO A CALL OF ONE SUBROUTINE INSTEAD OF THREE.
+!!             REPLACE COMMON BLOCKS WITH A LIMITED NUMBER OF MODULES.
+!!   04-01-01  H CHUANG - ADDED NMM IO MODULE AND BINARY OPTIONS
+!!   05-07-08  Binbin Zhou: Aadded RSM model
+!!   05-12-05  H CHUANG - ADDED CAPABILITY TO OUTPUT OFF-HOUR FORECAST WHICH HAS
+!!               NO IMPACTS ON ON-HOUR FORECAST
+!!   06-02-20  CHUANG, BLACK, AND ROGERS - FINALIZED COMPLETE LIST OF NAM
+!!             OPERATIONAL PRODUCTS FROM WRF
+!!   06-02-27  H CHUANG - MODIFIED TO POST MULTIPLE
+!!             FORECAST HOURS IN ONE EXECUTION
+!!   06-03-03  H CHUANG - ADDED PARRISH'S MPI BINARY IO TO READ BINARY
+!!             WRF FILE AS RANDOM ASSCESS SO THAT VARIABLES IN WRF OUTPUT
+!!             DON'T HAVE TO BE READ IN IN SPECIFIC ORDER 
+!!   11-02-06  J WANG  - ADD GRIB2 OPTION
+!!   11-12-14  SARAH LU - ADD THE OPTION TO READ NGAC AER FILE 
+!!   12-01-28  J WANG  - Use post available fields in xml file for grib2
+!!   13-06-25  S MOORTHI - add gocart_on logical option to save memory
+!!   13-10-03  J WANG  - add option for po to be pascal, and 
+!!                       add gocart_on,d3d_on and popascal to namelist
+!!   20-03-25  J MENG  - remove grib1
+!!   21-06-20  W Meng  - remove reading grib1 and gfsio lib
+!!  
+!! USAGE:    WRFPOST
+!!   INPUT ARGUMENT LIST:
+!!     NONE     
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!       NONE
+!!     LIBRARY:
+!!       COMMON - CTLBLK
+!!                RQSTFLD
+!!     
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN 90
+!!     MACHINE : IBM RS/6000 SP
+!!
+      PROGRAM WRFPOST
+
 !
 !
 !============================================================================================================
@@ -132,7 +135,6 @@
 !===========================================================================================
 !
       use netcdf
-      use gfsio_module,  only: gfsio_gfile, gfsio_init, gfsio_open, gfsio_getfilehead
       use nemsio_module, only: nemsio_getheadvar, nemsio_gfile, nemsio_init, nemsio_open, &
                                nemsio_getfilehead,nemsio_close
       use CTLBLK_mod,    only: filenameaer, me, num_procs, num_servers, mpi_comm_comp, datestr,      &
@@ -141,15 +143,15 @@
               lp1, lm1, im_jm, isf_surface_physics, nsoil, spl, lsmp1, global,                       &
               jsta, jend, jsta_m, jend_m, jsta_2l, jend_2u, novegtype, icount_calmict, npset, datapd,&
               lsm, fld_info, etafld2_tim, eta2p_tim, mdl2sigma_tim, cldrad_tim, miscln_tim,          &
-              fixed_tim, time_output, imin, surfce2_tim, komax, ivegsrc, d3d_on, gocart_on,          &
-              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat
+              mdl2agl_tim, mdl2std_tim, mdl2thandpv_tim, calrad_wcloud_tim,                                 &
+              fixed_tim, time_output, imin, surfce2_tim, komax, ivegsrc, d3d_on, gocart_on,rdaod,    &
+              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat, aqfcmaq_on
       use grib2_module,   only: gribit2,num_pset,nrecout,first_grbtbl,grib_info_finalize
       use sigio_module,   only: sigio_head
       use sigio_r_module, only: sigio_rropen, sigio_rrhead
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
 !
-      type(gfsio_gfile)  :: gfile
       type(nemsio_gfile) :: nfile,ffile,rfile
       type(sigio_head)   :: sighead
       INCLUDE "mpif.h"
@@ -160,7 +162,7 @@
 !
 !temporary vars
 !
-      real(kind=8) :: time_initpost=0.,INITPOST_tim=0.,btim,timef
+      real(kind=8) :: time_initpost=0.,INITPOST_tim=0.,btim,bbtim
       real            rinc(5), untcnvt
       integer      :: status=0,iostatusD3D=0,iostatusFlux=0
       integer i,j,iii,l,k,ierr,nrec,ist,lusig,idrt,ncid3d,varid
@@ -172,7 +174,7 @@
       integer      :: kpo,kth,kpv
       real,dimension(komax) :: po,th,pv
       namelist/nampgb/kpo,po,kth,th,kpv,pv,fileNameAER,d3d_on,gocart_on,popascal &
-                     ,hyb_sigp
+                     ,hyb_sigp,rdaod,aqfcmaq_on
 
       character startdate*19,SysDepInfo*80,IOWRFNAME*3,post_fname*255
       character cgar*1,cdum*4,line*10
@@ -222,7 +224,8 @@
         read(5,120) grib
         if (me==0) print*,'OUTFORM= ',grib
         if(index(grib,"grib") == 0) then
-          grib='grib1'
+!          grib='grib1' !GRIB1 IS NOT SUPPORTED ANYMORE.
+          grib='grib2'
           rewind(5,iostat=ierr)
           read(5,111,end=1000) fileName
           read(5,113) IOFORM
@@ -283,9 +286,10 @@
 
 !
 ! set ndegr
-      if(grib=='grib1') then
-        gdsdegr = 1000.
-      else if (grib=='grib2') then
+!      if(grib=='grib1') then
+!        gdsdegr = 1000.
+!      else if (grib=='grib2') then
+      if(grib=='grib2') then
         gdsdegr = 1.d6
       endif
       if (me==0) print *,'gdsdegr=',gdsdegr
@@ -301,8 +305,10 @@
         hyb_sigp    = .true.
         d3d_on      = .false.
         gocart_on   = .false.
+        aqfcmaq_on  = .false.
         popascal    = .false.
         fileNameAER = ''
+        rdaod       = .false.
 !       gocart_on   = .true.
 !       d3d_on      = .true.
 
@@ -433,6 +439,7 @@
           call ext_ncd_ioclose ( DataHandle, Status )
          ELSE
 ! use netcdf lib directly to read FV3 output in netCDF
+          spval = 9.99e20
           Status = nf90_open(trim(fileName),NF90_NOWRITE, ncid3d)
           if ( Status /= 0 ) then
             print*,'error opening ',fileName, ' Status = ', Status 
@@ -480,6 +487,7 @@
          END IF 
 ! use netcdf_parallel lib directly to read FV3 output in netCDF
         ELSE IF(TRIM(IOFORM) == 'netcdfpara') THEN
+          spval = 9.99e20
           Status = nf90_open(trim(fileName),ior(nf90_nowrite, nf90_mpiio), &
                              ncid3d, comm=mpi_comm_world, info=mpi_info_null)
           if ( Status /= 0 ) then
@@ -529,68 +537,6 @@
                 TRIM(IOFORM) == 'binarympiio' ) THEN
           print*,'WRF Binary format is no longer supported'
           STOP 9996
-        ELSE IF(TRIM(IOFORM) == 'grib' )THEN
-      
-          IF(MODELNAME == 'GFS') THEN
-            IF(ME == 0)THEN
-              call gfsio_init(iret=status)
-              print *,'gfsio_init, iret=',status
-              call gfsio_open(gfile,trim(filename),'read',iret=status)
-              if ( Status /= 0 ) then
-                print*,'error opening ',fileName, ' Status = ', Status ; stop
-              endif
-!---
-              call gfsio_getfilehead(gfile,iret=status,nrec=nrec            &
-                 ,lonb=im,latb=jm,levs=lm)
-              if ( Status /= 0 ) then
-                print*,'error finding GFS dimensions '; stop
-              endif
-              nsoil = 4
-! opening GFS flux file	 
-              iunit = 33
-              call baopenr(iunit,trim(fileNameFlux),iostatusFlux)
-              if(iostatusFlux /= 0) print*,'flux file not opened'
-              iunitd3d = 34
-              call baopenr(iunitd3d,trim(fileNameD3D),iostatusD3D)
-!             iostatusD3D = -1
-!jun
-              if (iostatusD3D == 0) then
-                d3d_on = .true.
-              endif
-              print*,'iostatusD3D in WRFPOST= ',iostatusD3D
-
-! comment this out because GFS analysis post processing does not use Grib file
-!             if ( Status /= 0 ) then
-!               print*,'error opening ',fileNameFlux , ' Status = ', Status
-!               stop
-!             endif
-            END IF
-
-            CALL mpi_bcast(im,          1,MPI_INTEGER,0,mpi_comm_comp,status) 
-            call mpi_bcast(jm,          1,MPI_INTEGER,0,mpi_comm_comp,status)
-            call mpi_bcast(lm,          1,MPI_INTEGER,0,mpi_comm_comp,status)
-            call mpi_bcast(nsoil,       1,MPI_INTEGER,0,mpi_comm_comp,status)
-            call mpi_bcast(iostatusFlux,1,MPI_INTEGER,0,mpi_comm_comp,status)
-            call mpi_bcast(iostatusD3D, 1,MPI_INTEGER,0,mpi_comm_comp,status)
-
-            print*,'im jm lm nsoil from GFS= ',im,jm, lm ,nsoil
-            LP1   = LM+1
-            LM1   = LM-1
-            IM_JM = IM*JM
-! might have to use generic opengbr and getgb for AFWA WRF Grib output
-!       else
-!       iunit=33
-!	call opengbr.....
-!       NCGB=LEN_TRIM(filename)
-!	 im=kgds(2)
-!	 jm=kgds(3)      
-        
-!	if(kgds(1) == 4)then ! Gaussian Latitude Longitude 
-!	 MAPTYPE=4
-!	else if(kgds(1) == 1)then ! Mercator
-!	end if
- 
-          END IF
 ! NEMSIO format
         ELSE IF(TRIM(IOFORM) == 'binarynemsio' .or.                        &
           TRIM(IOFORM) == 'binarynemsiompiio' )THEN
@@ -727,8 +673,8 @@
 
 
         CALL MPI_FIRST()
-        print*,'jsta,jend,jsta_m,jend_m,jsta_2l,jend_2u=',jsta,        &
-                jend,jsta_m,jend_m, jsta_2l,jend_2u
+        print*,'jsta,jend,jsta_m,jend_m,jsta_2l,jend_2u,spval=',jsta,        &
+                jend,jsta_m,jend_m, jsta_2l,jend_2u,spval
         CALL ALLOCATE_ALL()
      
 !
@@ -738,7 +684,8 @@
         REWIND(LCNTRL)
 
 ! EXP. initialize netcdf here instead
-        btim = timef()
+        bbtim = mpi_wtime()
+        btim = mpi_wtime()
 ! set default novegtype
         if(MODELNAME == 'GFS')THEN
           novegtype = 13 
@@ -789,10 +736,6 @@
             PRINT*,'POST does not have mpiio option for this model, STOPPING'
             STOP 9998
           END IF
-        ELSE IF(TRIM(IOFORM) == 'grib') THEN 
-          IF(MODELNAME == 'GFS') THEN
-            CALL INITPOST_GFS(NREC,iunit,iostatusFlux,iunitd3d,iostatusD3D,gfile)
-          END IF
         ELSE IF(TRIM(IOFORM) == 'binarynemsio') THEN 
           IF(MODELNAME == 'NMM') THEN
             CALL INITPOST_NEMS(NREC,nfile)
@@ -835,8 +778,7 @@
           PRINT*,'UNKNOWN MODEL OUTPUT FORMAT, STOPPING'
           STOP 9999
         END IF 
-        INITPOST_tim  = INITPOST_tim +(timef() - btim)
-        time_initpost = time_initpost + timef()
+        INITPOST_tim  = INITPOST_tim +(mpi_wtime() - btim)
         IF(ME == 0)THEN
           WRITE(6,*)'WRFPOST:  INITIALIZED POST COMMON BLOCKS'
         ENDIF
@@ -844,9 +786,9 @@
 !       IF GRIB2 read out post aviable fields xml file and post control file
 !
         if(grib == "grib2") then
-          btim=timef()
+          btim=mpi_wtime()
           call READ_xml()
-          READxml_tim = READxml_tim + (timef() - btim)
+          READxml_tim = READxml_tim + (mpi_wtime() - btim)
         endif
 ! 
 !     LOOP OVER THE OUTPUT GRID(S).  FIELD(S) AND  OUTPUT GRID(S) ARE SPECIFIED
@@ -860,37 +802,40 @@
 !     
 !        READ CONTROL FILE DIRECTING WHICH FIELDS ON WHICH
 !        LEVELS AND TO WHICH GRID TO INTERPOLATE DATA TO.
-!        VARIABLE IEOF.NE.0 WHEN THERE ARE NO MORE GRIDS TO PROCESS.
-
+!        VARIABLE IEOF/=0 WHEN THERE ARE NO MORE GRIDS TO PROCESS.
+!
 !                      --------    grib1 processing  ---------------
 !                                 ------------------
-        if (grib == "grib1") then
-          IEOF = 0
-          do while (ieof == 0)
-            CALL READCNTRL(kth,IEOF)
-            IF(ME == 0)THEN
-              WRITE(6,*)'POST:  RETURN FROM READCNTRL.  ', 'IEOF=',IEOF
-            ENDIF
+!        if (grib == "grib1") then !DO NOT REVERT TO GRIB1. GRIB1 NOT SUPPORTED ANYMORE
+!          IEOF = 0
+!          do while (ieof == 0)
+!            CALL READCNTRL(kth,IEOF)
+!            IF(ME == 0)THEN
+!              WRITE(6,*)'POST:  RETURN FROM READCNTRL.  ', 'IEOF=',IEOF
+!            ENDIF
 !
 !           PROCESS SELECTED FIELDS.  FOR EACH SELECTED FIELD/LEVEL
 !           WE GO THROUGH THE FOLLOWING STEPS:
 !             (1) COMPUTE FIELD IF NEED BE
 !             (2) WRITE FIELD TO OUTPUT FILE IN GRIB.
 !
-            if (ieof == 0) then
-              CALL PROCESS(kth,kpv,th(1:kth),pv(1:kpv),iostatusD3D)
-              IF(ME == 0)THEN
-                WRITE(6,*)' '
-                WRITE(6,*)'WRFPOST:  PREPARE TO PROCESS NEXT GRID'
-              ENDIF
-            endif
+!            if (ieof == 0) then
+!              CALL PROCESS(kth,kpv,th(1:kth),pv(1:kpv),iostatusD3D)
+!              IF(ME == 0)THEN
+!                WRITE(6,*)' '
+!                WRITE(6,*)'WRFPOST:  PREPARE TO PROCESS NEXT GRID'
+!              ENDIF
+!            endif
 !
 !           PROCESS NEXT GRID.
 !
-          enddo
+!          enddo
 !                      --------    grib2 processing  ---------------
 !                                 ------------------
-        elseif (grib == "grib2") then
+!        elseif (grib == "grib2") then
+        if (me==0) write(0,*) ' in WRFPOST OUTFORM= ',grib
+        if (me==0) write(0,*) '  GRIB1 IS NOT SUPPORTED ANYMORE'    
+        if (grib == "grib2") then
           do while (npset < num_pset)
             npset = npset+1
             if (me==0) write(0,*)' in WRFPOST npset=',npset,' num_pset=',num_pset
@@ -950,19 +895,23 @@
  1000   CONTINUE
 !exp      call ext_ncd_ioclose ( DataHandle, Status )
 !
-        print*, 'INITPOST_tim = ',  INITPOST_tim*1.0e-3
-        print*, 'MDLFLD_tim = ',  ETAFLD2_tim*1.0e-3
-        print*, 'MDL2P_tim =  ',ETA2P_tim *1.0e-3
-        print*, 'MDL2SIGMA_tim =  ',MDL2SIGMA_tim *1.0e-3
-        print*, 'SURFCE_tim =  ',SURFCE2_tim*1.0e-3
-        print*, 'CLDRAD_tim =  ',CLDRAD_tim *1.0e-3
-        print*, 'MISCLN_tim = ',MISCLN_tim*1.0e-3
-        print*, 'FIXED_tim = ',FIXED_tim*1.0e-3
-        print*, 'Total time = ',(timef() - btim) * 1.0e-3
-        print*, 'Time for OUTPUT = ',time_output
-        print*, 'Time for INITPOST = ',time_initpost
-        print*, 'Time for READxml = ',READxml_tim * 1.0e-3
-
+        IF(ME == 0) THEN
+         print*, 'INITPOST_tim = ',  INITPOST_tim
+         print*, 'MDLFLD_tim = ',  ETAFLD2_tim
+         print*, 'MDL2P_tim =  ',ETA2P_tim 
+         print*, 'MDL2SIGMA_tim =  ',MDL2SIGMA_tim 
+         print*, 'MDL2AGL_tim =  ',MDL2AGL_tim 
+         print*, 'SURFCE_tim =  ',SURFCE2_tim
+         print*, 'CLDRAD_tim =  ',CLDRAD_tim 
+         print*, 'MISCLN_tim = ',MISCLN_tim
+         print*, 'MDL2STD_tim =  ',MDL2STD_tim    
+         print*, 'FIXED_tim = ',FIXED_tim
+         print*, 'MDL2THANDPV_tim =  ',MDL2THANDPV_tim
+         print*, 'CALRAD_WCLOUD_tim = ',CALRAD_WCLOUD_tim    
+         print*, 'Total time = ',(mpi_wtime() - bbtim)
+         print*, 'Time for OUTPUT = ',time_output
+         print*, 'Time for READxml = ',READxml_tim
+        endif
 !     
 !       END OF PROGRAM.
 !
@@ -976,10 +925,10 @@
 !
 !
 !
-      call summary()
+!      call summary()
+      if (me == 0) CALL W3TAGE('UNIFIED_POST')
       CALL MPI_FINALIZE(IERR)
 
-      CALL W3TAGE('UNIFIED_POST')
 
       STOP 0
 

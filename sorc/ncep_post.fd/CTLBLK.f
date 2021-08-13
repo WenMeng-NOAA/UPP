@@ -41,7 +41,7 @@
   real*8 :: gdsdegr
   real,allocatable :: datapd(:,:,:)
 !
-  logical :: gocart_on, d3d_on, hyb_sigp
+  logical :: gocart_on, d3d_on, hyb_sigp, rdaod, aqfcmaq_on
   logical :: SIGMA,RUN,FIRST,RESTRT
   logical :: global
   logical :: SMFLAG
@@ -51,7 +51,7 @@
              icu_physics,iSF_SURFACE_PHYSICS,ISEC,icount_calmict,      &
              ivegsrc
   real :: DT,SDAT(3),AVRAIN,AVCNVC,DTQ2,PT,PDTOP,                      &
-          SPL(komax),ALSL(komax),PREC_ACC_DT,PT_TBL, spval
+          SPL(komax),ALSL(komax),PREC_ACC_DT,PT_TBL,PREC_ACC_DT1,spval
 ! real :: SPVAL=9.9e10                                     ! Moorthi
 !
   integer :: NUM_PROCS,ME,JSTA,JEND,JSTA_M,JEND_M,                     &
@@ -67,7 +67,8 @@
 !  
   real(kind=8) :: ETAFLD2_tim=0.,ETA2P_tim=0.,SURFCE2_tim=0.,          &
                   CLDRAD_tim=0.,MISCLN_tim=0.,FIXED_tim=0.,            &
-                  MDL2SIGMA_tim=0.,READxml_tim=0.                      !comm tim_info
+                  MDL2SIGMA_tim=0.,READxml_tim=0.,MDL2AGL_tim=0.,      &
+                  MDL2STD_tim=0.,MDL2THANDPV_tim=0.,CALRAD_WCLOUD_tim=0.!comm tim_info
 !
   real(kind=8) :: time_output=0., time_e2out=0.           !comm jjt
 !

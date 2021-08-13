@@ -1,85 +1,86 @@
-      SUBROUTINE CALHEL2(LLOW,LUPP,DEPTH,UST,VST,HELI,CANGLE)
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!> @file
 !                .      .    .     
-! SUBPROGRAM:    CALHEL       COMPUTES STORM RELATIVE HELICITY
-!   PRGRMMR: BALDWIN         ORG: W/NP2      DATE: 94-08-22       
-!     
-! ABSTRACT:
-!     THIS ROUTINE COMPUTES ESTIMATED STORM MOTION AND
-!     STORM-RELATIVE ENVIRONMENTAL HELICITY.  
-!     (DAVIES-JONES ET AL 1990) THE ALGORITHM PROCEEDS AS 
-!     FOLLOWS.
-!     
-!     THE STORM MOTION COMPUTATION NO LONGER EMPLOYS THE DAVIES AND
-!     JOHNS (1993) METHOD WHICH DEFINED STORM MOTION AS 30 DEGREES TO
-!     THE RIGHT OF THE 0-6 KM MEAN WIND AT 75% OF THE SPEED FOR MEAN
-!     SPEEDS LESS THAN 15 M/S AND 20 DEGREES TO THE RIGHT FOR SPEEDS
-!     GREATER THAN 15 M/S.   INSTEAD, WE NOW USE THE DYNAMIC METHOD
-!     (BUNKERS ET AL. 1998) WHICH HAS BEEN FOUND TO DO BETTER IN
-!     CASES WITH 'NON-CLASSIC' HODOGRAPHS (SUCH AS NORTHWEST-FLOW
-!     EVENTS) AND DO AS WELL OR BETTER THAN THE OLD METHOD IN MORE
-!     CLASSIC SITUATIONS. 
-!     
-! PROGRAM HISTORY LOG:
-!   94-08-22  MICHAEL BALDWIN
-!   97-03-27  MICHAEL BALDWIN - SPEED UP CODE
-!   98-06-15  T BLACK         - CONVERSION FROM 1-D TO 2-D
-!   00-01-04  JIM TUCCILLO    - MPI VERSION
-!   00-01-10  G MANIKIN       - CHANGED TO BUNKERS METHOD
-!   02-05-22  G MANIKIN       - NOW ALLOW CHOICE OF COMPUTING
-!                               HELICITY OVER TWO DIFFERENT
-!                               (0-1 and 0-3 KM) DEPTHS
-!   03-03-25  G MANIKIN       - MODIFIED CODE TO COMPUTE MEAN WINDS
-!                               USING ARITHMETIC AVERAGES INSTEAD OF
-!                               MASS WEIGHTING;  DIFFERENCES ARE MINOR
-!                               BUT WANT TO BE CONSISTENT WITH THE
-!                               BUNKERS METHOD
-!   04-04-16  M PYLE          - MINIMAL MODIFICATIONS, BUT PUT INTO
-!                                NMM WRFPOST CODE
-!   05=02-25  H CHUANG        - ADD COMPUTATION FOR ARW A GRID
-!   05-07-07  BINBIN ZHOU     - ADD RSM FOR A GRID  
-!   19-09-03  J MENG          - MODIFIED TO COMPUTE EFFECTIVE HELICITY
-!                               AND CRITICAL ANGLE
-!   
-! USAGE:    CALHEL(UST,VST,HELI)
-!   INPUT ARGUMENT LIST:
-!     LLOW      - LOWER BOUND CAPE>=100 AND CINS>=-250
-!     LUPP      - UPPER BOUND CAPE< 100  OR CINS< -250
-!     DPTH      - DEPTH IN METERS OVER WHICH HELICITY SHOULD BE COMPUTED;
-!                 ALLOWS ONE TO DISTINGUISH 0-3 KM AND 0-1 KM VALUES
-!
-!   OUTPUT ARGUMENT LIST: 
-!     UST      - ESTIMATED U COMPONENT (M/S) OF STORM MOTION.
-!     VST      - ESTIMATED V COMPONENT (M/S) OF STORM MOTION.
-!     HELI     - STORM-RELATIVE HELICITY (M**2/S**2)
-!     CANGLE   - CRITICAL ANGLE
-! CRA
-!     USHR1    - U COMPONENT (M/S) OF 0-1 KM SHEAR
-!     VSHR1    - V COMPONENT (M/S) OF 0-1 KM SHEAR
-!     USHR6    - U COMPONENT (M/S) OF 0-0.5 to 5.5-6.0 KM SHEAR
-!     VSHR6    - V COMPONENT (M/S) OF 0-0.5 to 5.5-6.0 KM SHEAR
-! CRA
+!> SUBPROGRAM:    CALHEL       COMPUTES STORM RELATIVE HELICITY
+!!   PRGRMMR: BALDWIN         ORG: W/NP2      DATE: 94-08-22       
+!!     
+!! ABSTRACT:
+!!     THIS ROUTINE COMPUTES ESTIMATED STORM MOTION AND
+!!     STORM-RELATIVE ENVIRONMENTAL HELICITY.  
+!!     (DAVIES-JONES ET AL 1990) THE ALGORITHM PROCEEDS AS 
+!!     FOLLOWS.
+!!     
+!!     THE STORM MOTION COMPUTATION NO LONGER EMPLOYS THE DAVIES AND
+!!     JOHNS (1993) METHOD WHICH DEFINED STORM MOTION AS 30 DEGREES TO
+!!     THE RIGHT OF THE 0-6 KM MEAN WIND AT 75% OF THE SPEED FOR MEAN
+!!     SPEEDS LESS THAN 15 M/S AND 20 DEGREES TO THE RIGHT FOR SPEEDS
+!!     GREATER THAN 15 M/S.   INSTEAD, WE NOW USE THE DYNAMIC METHOD
+!!     (BUNKERS ET AL. 1998) WHICH HAS BEEN FOUND TO DO BETTER IN
+!!     CASES WITH 'NON-CLASSIC' HODOGRAPHS (SUCH AS NORTHWEST-FLOW
+!!     EVENTS) AND DO AS WELL OR BETTER THAN THE OLD METHOD IN MORE
+!!     CLASSIC SITUATIONS. 
+!!     
+!! PROGRAM HISTORY LOG:
+!!   94-08-22  MICHAEL BALDWIN
+!!   97-03-27  MICHAEL BALDWIN - SPEED UP CODE
+!!   98-06-15  T BLACK         - CONVERSION FROM 1-D TO 2-D
+!!   00-01-04  JIM TUCCILLO    - MPI VERSION
+!!   00-01-10  G MANIKIN       - CHANGED TO BUNKERS METHOD
+!!   02-05-22  G MANIKIN       - NOW ALLOW CHOICE OF COMPUTING
+!!                               HELICITY OVER TWO DIFFERENT
+!!                               (0-1 and 0-3 KM) DEPTHS
+!!   03-03-25  G MANIKIN       - MODIFIED CODE TO COMPUTE MEAN WINDS
+!!                               USING ARITHMETIC AVERAGES INSTEAD OF
+!!                               MASS WEIGHTING;  DIFFERENCES ARE MINOR
+!!                               BUT WANT TO BE CONSISTENT WITH THE
+!!                               BUNKERS METHOD
+!!   04-04-16  M PYLE          - MINIMAL MODIFICATIONS, BUT PUT INTO
+!!                                NMM WRFPOST CODE
+!!   05=02-25  H CHUANG        - ADD COMPUTATION FOR ARW A GRID
+!!   05-07-07  BINBIN ZHOU     - ADD RSM FOR A GRID  
+!!   19-09-03  J MENG          - MODIFIED TO COMPUTE EFFECTIVE HELICITY
+!!                               AND CRITICAL ANGLE
+!!   
+!! USAGE:    CALHEL(UST,VST,HELI)
+!!   INPUT ARGUMENT LIST:
+!!     LLOW      - LOWER BOUND CAPE>=100 AND CINS>=-250
+!!     LUPP      - UPPER BOUND CAPE< 100  OR CINS< -250
+!!     DPTH      - DEPTH IN METERS OVER WHICH HELICITY SHOULD BE COMPUTED;
+!!                 ALLOWS ONE TO DISTINGUISH 0-3 KM AND 0-1 KM VALUES
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     UST      - ESTIMATED U COMPONENT (M/S) OF STORM MOTION.
+!!     VST      - ESTIMATED V COMPONENT (M/S) OF STORM MOTION.
+!!     HELI     - STORM-RELATIVE HELICITY (M**2/S**2)
+!!     CANGLE   - CRITICAL ANGLE
+!! CRA
+!!     USHR1    - U COMPONENT (M/S) OF 0-1 KM SHEAR
+!!     VSHR1    - V COMPONENT (M/S) OF 0-1 KM SHEAR
+!!     USHR6    - U COMPONENT (M/S) OF 0-0.5 to 5.5-6.0 KM SHEAR
+!!     VSHR6    - V COMPONENT (M/S) OF 0-0.5 to 5.5-6.0 KM SHEAR
+!! CRA
 
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!
-!     LIBRARY:
-!       COMMON   - VRBLS
-!                  LOOPS
-!                  PHYS 
-!                  EXTRA
-!                  MASKS
-!                  OPTIONS
-!                  INDX
-!     
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN 90
-!     MACHINE : IBM SP
-!$$$  
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!
+!!     LIBRARY:
+!!       COMMON   - VRBLS
+!!                  LOOPS
+!!                  PHYS 
+!!                  EXTRA
+!!                  MASKS
+!!                  OPTIONS
+!!                  INDX
+!!     
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN 90
+!!     MACHINE : IBM SP
+!!
+      SUBROUTINE CALHEL2(LLOW,LUPP,DEPTH,UST,VST,HELI,CANGLE)
+
 !
       use vrbls3d,    only: zmid, uh, vh, u, v, zint
       use vrbls2d,    only: fis, u10, v10
@@ -87,7 +88,7 @@
       use params_mod, only: g
       use lookup_mod, only: ITB,JTB,ITBQ,JTBQ
       use ctlblk_mod, only: jsta, jend, jsta_m, jend_m, jsta_2l, jend_2u, &
-                            lm, im, jm, me
+                            lm, im, jm, me, spval
       use gridspec_mod, only: gridtype
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
@@ -353,7 +354,7 @@
             VSHR6(I,J) = VMEAN5 - VMEAN1
 
             DENOM = USHR6(I,J)*USHR6(I,J)+VSHR6(I,J)*VSHR6(I,J)
-            IF (DENOM .NE. 0.0) THEN
+            IF (DENOM /= 0.0) THEN
               UST(I,J) = UMEAN6 + (7.5*VSHR6(I,J)/SQRT(DENOM))
               VST(I,J) = VMEAN6 - (7.5*USHR6(I,J)/SQRT(DENOM))
             ELSE
@@ -460,6 +461,10 @@
                 DV1 = VH(I,J,L+1)-VH(I,J,L)
                 DV2 = VH(I,J,L)-VH(I,J,L-1)
               IF( L >= LUPP(I,J) .AND. L <= LLOW(I,J) ) THEN
+               IF( VH(I,J,L)  <spval.and.UH(I,J,L)  <spval.and.         &
+                   VH(I,J,L+1)<spval.and.UH(I,J,L+1)<spval.and.         &
+                   VH(I,J,L-1)<spval.and.UH(I,J,L-1)<spval.and.         &
+                   VST(I,J)   <spval.and.UST(I,J)   <spval)             &
                 HELI(I,J,N) = ((VH(I,J,L)-VST(I,J))*                      &
                                (DZ2*(DU1/DZ1)+DZ1*(DU2/DZ2))              &
                             -  (UH(I,J,L)-UST(I,J))*                      &
@@ -483,11 +488,16 @@
 
           DO J=JSTART,JSTOP
             DO I=ISTART,ISTOP
+             IF(VSHR05(I,J)<spval.and.USHR05(I,J)<spval.and. &
+                VST(I,J)<spval.and.UST(I,J)<spval) THEN
                CANGLE(I,J)=ATAN2(VSHR05(I,J),USHR05(I,J))-ATAN2(VST(I,J),UST(I,J))
                CANGLE(I,J)=(CANGLE(I,J)/PI)*180.
                IF(CANGLE(I,J) >  180.) CANGLE(I,J)=360.-CANGLE(I,J)
                IF(CANGLE(I,J) < 0. .AND. CANGLE(I,J) >= -180.) CANGLE(I,J)=-CANGLE(I,J)
                IF(CANGLE(I,J) < -180.) CANGLE(I,J)=360.+CANGLE(I,J)
+             ELSE
+               CANGLE(I,J)=spval
+             ENDIF
             ENDDO
           ENDDO
 !

@@ -1,40 +1,42 @@
-       SUBROUTINE INITPOST_GFS_NETCDF(ncid3d)
-
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!> @file
 !                .      .    .     
-! SUBPROGRAM:    INITPOST_NETCDF  INITIALIZE POST FOR RUN
-!   PRGRMMR: Hui-Ya Chuang    DATE: 2016-03-04
-!     
-! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
-!   VARIABLES AT THE START OF GFS MODEL OR POST 
-!   PROCESSOR RUN.
-!
-! REVISION HISTORY
-!   2017-08-11 H Chuang   start from INITPOST_GFS_NEMS_MPIIO.f 
-!
-! USAGE:    CALL INITPOST_NETCDF
-!   INPUT ARGUMENT LIST:
-!     NONE     
-!
-!   OUTPUT ARGUMENT LIST: 
-!     NONE
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!       NONE
-!     LIBRARY:
-!       COMMON   - CTLBLK
-!                  LOOKUP
-!                  SOILDEPTH
-!
-!    
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN
-!     MACHINE : CRAY C-90
-!$$$  
+!> SUBPROGRAM:    INITPOST_NETCDF  INITIALIZE POST FOR RUN
+!!   PRGRMMR: Hui-Ya Chuang    DATE: 2016-03-04
+!!     
+!! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
+!!   VARIABLES AT THE START OF GFS MODEL OR POST 
+!!   PROCESSOR RUN.
+!!
+!! REVISION HISTORY
+!!   2017-08-11 H Chuang   start from INITPOST_GFS_NEMS_MPIIO.f 
+!!   2021-03-11 Bo Cui     change local arrays to dimension (im,jsta:jend)
+!!
+!! USAGE:    CALL INITPOST_NETCDF
+!!   INPUT ARGUMENT LIST:
+!!     NONE     
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     NONE
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!       NONE
+!!     LIBRARY:
+!!       COMMON   - CTLBLK
+!!                  LOOKUP
+!!                  SOILDEPTH
+!!
+!!    
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN
+!!     MACHINE : CRAY C-90
+!!
+      SUBROUTINE INITPOST_GFS_NETCDF(ncid3d)
+
+
       use netcdf
       use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO, PP25, PP10 
       use vrbls3d, only: t, q, uh, vh, pmid, pint, alpint, dpres, zint, zmid, o3,               &
@@ -62,7 +64,7 @@
               avgedir,avgecan,avgetrans,avgesnow,avgprec_cont,avgcprate_cont,rel_vort_max, &
               avisbeamswin,avisdiffswin,airbeamswin,airdiffswin,refdm10c_max,wspd10max, &
               alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg, &
-              ti 
+              ti,aod550,du_aod550,ss_aod550,su_aod550,oc_aod550,bc_aod550
       use soil,  only: sldpth, sh2o, smc, stc
       use masks, only: lmv, lmh, htm, vtm, gdlat, gdlon, dx, dy, hbm2, sm, sice
       use physcons_post,   only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
@@ -75,11 +77,12 @@
               jend_m, imin, imp_physics, dt, spval, pdtop, pt, qmin, nbin_du, nphs, dtq2, ardlw,&
               ardsw, asrfc, avrain, avcnvc, theat, gdsdegr, spl, lsm, alsl, im, jm, im_jm, lm,  &
               jsta_2l, jend_2u, nsoil, lp1, icu_physics, ivegsrc, novegtype, nbin_ss, nbin_bc,  &
-              nbin_oc, nbin_su, gocart_on, pt_tbl, hyb_sigp, filenameFlux, fileNameAER
+              nbin_oc, nbin_su, gocart_on, pt_tbl, hyb_sigp, filenameFlux, fileNameAER,rdaod
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat,lonstartv, lonlastv, cenlonv,    &
               latstartv, latlastv, cenlatv,latstart_r,latlast_r,lonstart_r,lonlast_r
       use rqstfld_mod,  only: igds, avbl, iq, is
+      use upp_physics, only: fpvsnew
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
 !
@@ -103,7 +106,6 @@
 !     real,parameter:: con_eps     =con_rd/con_rv
 !     real,parameter:: con_epsm1   =con_rd/con_rv-1
 !
-!     real,external::FPVSNEW
 ! This version of INITPOST shows how to initialize, open, read from, and
 ! close a NetCDF dataset. In order to change it to read an internal (binary)
 ! dataset, do a global replacement of _ncd_ with _int_. 
@@ -140,7 +142,9 @@
       real dtp !physics time step
       REAL RINC(5)
 
-      REAL DUMMY(IM,JM), DUMMY2(IM,JM), FI(IM,JM,2)
+!     REAL FI(IM,JM,2)
+      REAL DUMMY(IM,JM)
+
 !jw
       integer ii,jj,js,je,iyear,imn,iday,itmp,ioutcount,istatus,       &
               I,J,L,ll,k,kf,irtn,igdout,n,Index,nframe,                &
@@ -148,7 +152,6 @@
       integer ncid3d,ncid2d,varid,nhcas
       real    TSTART,TLMH,TSPH,ES,FACT,soilayert,soilayerb,zhour,dum,  &
               tvll,pmll,tv, tx1, tx2
-      real, external :: fpvsnew
 
       character*20,allocatable :: recname(:)
       integer,     allocatable :: reclev(:), kmsk(:,:)
@@ -458,6 +461,7 @@
         end do
         lonstart = nint(glon1d(1)*gdsdegr)
         lonlast  = nint(glon1d(im)*gdsdegr)
+        dxval    = nint(abs(glon1d(1)-glon1d(2))*gdsdegr)
       else if(numDims==2)then
         Status=nf90_get_var(ncid3d,varid,dummy)
         if(maxval(abs(dummy))<2.0*pi)convert_rad_to_deg=.true. 
@@ -477,13 +481,15 @@
         if(convert_rad_to_deg)then
          lonstart = nint(dummy(1,1)*gdsdegr)*180./pi
          lonlast  = nint(dummy(im,jm)*gdsdegr)*180./pi
+         dxval    = nint(abs(dummy(1,1)-dummy(2,1))*gdsdegr)*180./pi
         else
          lonstart = nint(dummy(1,1)*gdsdegr)
          lonlast  = nint(dummy(im,jm)*gdsdegr)
+         dxval    = nint(abs(dummy(1,1)-dummy(2,1))*gdsdegr)
         end if
 
 ! Jili Dong add support for regular lat lon (2019/03/22) start
-       if (MAPTYPE .eq. 0) then
+       if (MAPTYPE == 0) then
         if(lonstart<0.)then
          lonstart=lonstart+360.*gdsdegr
         end if
@@ -494,7 +500,7 @@
 ! Jili Dong add support for regular lat lon (2019/03/22) end 
 
       end if
-      print*,'lonstart,lonlast ',lonstart,lonlast 
+      print*,'lonstart,lonlast,dxval ',lonstart,lonlast,dxval 
 ! get latitude
       Status=nf90_inq_varid(ncid3d,'grid_yt',varid)
       Status=nf90_inquire_variable(ncid3d,varid,ndims = numDims)
@@ -508,6 +514,7 @@
         end do
         latstart = nint(glat1d(1)*gdsdegr)
         latlast  = nint(glat1d(jm)*gdsdegr)
+        dyval    = nint(abs(glat1d(1)-glat1d(2))*gdsdegr)
       else if(numDims==2)then
         Status=nf90_get_var(ncid3d,varid,dummy)
         if(maxval(abs(dummy))<pi)convert_rad_to_deg=.true.
@@ -527,12 +534,14 @@
         if(convert_rad_to_deg)then
          latstart = nint(dummy(1,1)*gdsdegr)*180./pi
          latlast  = nint(dummy(im,jm)*gdsdegr)*180./pi
+         dyval    = nint(abs(dummy(1,1)-dummy(1,2))*gdsdegr)*180./pi
         else
          latstart = nint(dummy(1,1)*gdsdegr)
          latlast  = nint(dummy(im,jm)*gdsdegr)
+         dyval    = nint(abs(dummy(1,1)-dummy(1,2))*gdsdegr)
         end if
       end if
-      print*,'laststart,latlast = ',latstart,latlast
+      print*,'laststart,latlast,dyval = ',latstart,latlast,dyval
       if(debugprint)print*,'me sample gdlon gdlat= ' &
      ,me,gdlon(isa,jsa),gdlat(isa,jsa)
 
@@ -1999,6 +2008,34 @@
           if (qwbs(i,j) /= spval) qwbs(i,j) = -qwbs(i,j)
         enddo
       enddo
+
+      if(me==0)print*,'rdaod= ',rdaod
+! inst aod550 optical depth
+      if(rdaod) then
+      VarName='aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,aod550)
+
+      VarName='du_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,du_aod550)
+
+      VarName='ss_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ss_aod550)
+
+      VarName='su_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,su_aod550)
+
+      VarName='oc_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,oc_aod550)
+
+      VarName='bc_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,bc_aod550)
+      end if
 
 ! time averaged ground heat flux using nemsio
       VarName='gflux_ave'

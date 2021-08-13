@@ -55,9 +55,11 @@
 !
 !      vis = -ln(epsilon)/beta      [found in Kunkel (1984)]
 !
+! 2021-05  Wen Meng  -Add checking for undfined points invloved in 
+!                     computation.
 !------------------------------------------------------------------
     use params_mod, only: h1, d608, rd
-    use ctlblk_mod, only: jsta, jend, im, jsta_2l, jend_2u
+    use ctlblk_mod, only: jsta, jend, im, jsta_2l, jend_2u, spval
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     implicit none
 !
@@ -89,10 +91,11 @@
 !
       DO J=JSTA,JEND
       DO I=1,IM
-!       IF(IICE.EQ.0)THEN
+        VIS(I,J)=SPVAL
+!       IF(IICE==0)THEN
 !         QPRC=QR
 !         QCLD=QC
-!         IF(TT.LT.CELKEL)THEN
+!         IF(TT<CELKEL)THEN
 !           QRAIN=0.
 !           QSNOW=QPRC
 !           QCLW=0.
@@ -104,6 +107,10 @@
 !           QCLICE=0.
 !         ENDIF
 !       ELSE
+       IF (QR(I,J) < SPVAL .and. QS(I,J) < SPVAL .and. &
+           QC(I,J) < SPVAL .and. QI(I,J) < SPVAL .and. &
+           TT(I,J) < SPVAL .and. QV(I,J) < SPVAL .and. &
+           PP(I,J) < SPVAL) THEN
           QPRC=QR(I,J)+QS(I,J)
           QCLD=QC(I,J)+QI(I,J)
           QRAIN=QR(I,J)
@@ -114,8 +121,8 @@
 !       TV=VIRTUAL(TT,QV)
         TV=TT(I,J)*(H1+D608*QV(I,J))
         RHOAIR=PP(I,J)/(RD*TV)
-!       IF(METH.EQ.'D')THEN
-!         IF(TT.LT.CELKEL)THEN
+!       IF(METH=='D')THEN
+!         IF(TT<CELKEL)THEN
 !           VOVERMD=(1.+QV)/RHOAIR+(QPRC+QCLD)/RHOICE
 !           CONCLC = 0.
 !           CONCLP = 0.
@@ -128,14 +135,14 @@
 !           CONCFC = 0.
 !           CONCFP = 0.
 !         ENDIF
-!       ELSEIF(METH.EQ.'B')THEN
-!         IF(TT.LT.TICE)THEN
+!       ELSEIF(METH=='B')THEN
+!         IF(TT<TICE)THEN
 !           VOVERMD=(1.+QV)/RHOAIR+(QPRC+QCLD)/RHOICE
 !           CONCLC = 0.
 !           CONCLP = 0.
 !           CONCFC = QCLD/VOVERMD*1000.
 !           CONCFP = QPRC/VOVERMD*1000.
-!         ELSEIF(PRSNOW.GE.50.)THEN
+!         ELSEIF(PRSNOW>=50.)THEN
 !           VOVERMD=(1.+QV)/RHOAIR+QPRC/RHOICE+QCLD/RHOWAT
 !           CONCLC = QCLD/VOVERMD*1000.
 !           CONCLP = 0.
@@ -148,7 +155,7 @@
 !           CONCFC = 0.
 !           CONCFP = 0.
 !         ENDIF
-!       ELSEIF(METH.EQ.'R')THEN
+!       ELSEIF(METH=='R')THEN
           VOVERMD=(1.+QV(I,J))/RHOAIR+(QCLW+QRAIN)/RHOWAT+        &
                   (QCLICE+QSNOW)/RHOICE
           CONCLC = MAX(0., QCLW/VOVERMD*1000.)
@@ -164,6 +171,7 @@
 !        VIS(I,J)=1.E3*MIN(20.,CONST1/BETAV)   ! max of 20km
 ! Chuang: Per Geoff, the max visibility was changed to be cosistent with visibility ceiling in obs
         VIS(I,J) = 1.E3*MIN(24.135,CONST1/BETAV)   ! change max to be consistent with obs
+        ENDIF
       ENDDO
       ENDDO
 !

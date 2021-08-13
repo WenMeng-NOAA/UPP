@@ -1,54 +1,55 @@
-      SUBROUTINE CALMCVG(Q1D,U1D,V1D,QCNVG)
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
-! SUBPROGRAM:    CALMCVG     COMPUTES MOISTURE CONVERGENCE
-!   PRGRMMR: TREADON         ORG: W/NP2      DATE: 93-01-22       
-!     
-! ABSTRACT:
-!     GIVEN SPECIFIC HUMIDITY, Q, AND THE U-V WIND COMPONENTS
-!     THIS ROUTINE EVALUATES THE VECTOR OPERATION, 
-!                      DEL DOT (Q*VEC)
-!     WHERE,
-!        DEL IS THE VECTOR GRADIENT OPERATOR,
-!        DOT IS THE STANDARD DOT PRODUCT OPERATOR, AND
-!        VEC IS THE VECTOR WIND.
-!     MINUS ONE TIMES THE RESULTING SCALAR FIELD IS THE 
-!     MOISTURE CONVERGENCE WHICH IS RETURNED BY THIS ROUTINE.
-!   .     
-!     
-! PROGRAM HISTORY LOG:
-!   93-01-22  RUSS TREADON
-!   98-06-08  T BLACK - CONVERSION FROM 1-D TO 2-D
-!   00-01-04  JIM TUCCILLO - MPI VERSION              
-!   02-04-23  MIKE BALDWIN - WRF C-GRID VERSION     
-!   05-07-07  BINBIN ZHOU - ADD RSM A GRID
-!   06-04-25  H CHUANG - BUG FIXES TO CORECTLY COMPUTE MC AT BOUNDARIES 
-!   
-! USAGE:    CALL CALMCVG(Q1D,U1D,V1D,QCNVG)
-!   INPUT ARGUMENT LIST:
-!     Q1D      - SPECIFIC HUMIDITY AT P-POINTS (KG/KG)
-!     U1D      - U WIND COMPONENT (M/S) AT P-POINTS
-!     V1D      - V WIND COMPONENT (M/S) AT P-POINTS
+!> @file
 !
-!   OUTPUT ARGUMENT LIST: 
-!     QCNVG    - MOISTURE CONVERGENCE (1/S) AT P-POINTS
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!       NONE
-!     LIBRARY:
-!       COMMON   - MASKS
-!                  DYNAM
-!                  OPTIONS
-!                  INDX
-!     
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN 90
-!     MACHINE : CRAY C-90
-!$$$  
+!> SUBPROGRAM:    CALMCVG     COMPUTES MOISTURE CONVERGENCE
+!!   PRGRMMR: TREADON         ORG: W/NP2      DATE: 93-01-22       
+!!     
+!! ABSTRACT:
+!!     GIVEN SPECIFIC HUMIDITY, Q, AND THE U-V WIND COMPONENTS
+!!     THIS ROUTINE EVALUATES THE VECTOR OPERATION, 
+!!                      DEL DOT (Q*VEC)
+!!     WHERE,
+!!        DEL IS THE VECTOR GRADIENT OPERATOR,
+!!        DOT IS THE STANDARD DOT PRODUCT OPERATOR, AND
+!!        VEC IS THE VECTOR WIND.
+!!     MINUS ONE TIMES THE RESULTING SCALAR FIELD IS THE 
+!!     MOISTURE CONVERGENCE WHICH IS RETURNED BY THIS ROUTINE.
+!!     
+!! PROGRAM HISTORY LOG:
+!!   93-01-22  RUSS TREADON
+!!   98-06-08  T BLACK - CONVERSION FROM 1-D TO 2-D
+!!   00-01-04  JIM TUCCILLO - MPI VERSION              
+!!   02-04-23  MIKE BALDWIN - WRF C-GRID VERSION     
+!!   05-07-07  BINBIN ZHOU - ADD RSM A GRID
+!!   06-04-25  H CHUANG - BUG FIXES TO CORECTLY COMPUTE MC AT BOUNDARIES 
+!!   21-04-01  J MENG   - COMPUTATION ON DEFINED POINTS ONLY
+!!   
+!! USAGE:    CALL CALMCVG(Q1D,U1D,V1D,QCNVG)
+!!   INPUT ARGUMENT LIST:
+!!     Q1D      - SPECIFIC HUMIDITY AT P-POINTS (KG/KG)
+!!     U1D      - U WIND COMPONENT (M/S) AT P-POINTS
+!!     V1D      - V WIND COMPONENT (M/S) AT P-POINTS
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     QCNVG    - MOISTURE CONVERGENCE (1/S) AT P-POINTS
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!       NONE
+!!     LIBRARY:
+!!       COMMON   - MASKS
+!!                  DYNAM
+!!                  OPTIONS
+!!                  INDX
+!!     
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN 90
+!!     MACHINE : CRAY C-90
+!!
+      SUBROUTINE CALMCVG(Q1D,U1D,V1D,QCNVG)
+
 !
 !     
 !     
@@ -95,13 +96,15 @@
 !$omp  parallel do private(i,j,qudx,qvdy,r2dx,r2dy)
        DO J=JSTA_M,JEND_M
          DO I=2,IM-1
-           IF(VWND(I,J+1).LT.SPVAL.AND.VWND(I,J-1).LT.SPVAL.AND.          &
-              UWND(I+1,J).LT.SPVAL.AND.UWND(I-1,J).LT.SPVAL) THEN
+           IF(Q1D(I,J+1)<SPVAL.AND.Q1D(I,J-1)<SPVAL.AND.          &
+              Q1D(I+1,J)<SPVAL.AND.Q1D(I-1,J)<SPVAL) THEN
              R2DX   = 1./(2.*DX(I,J))   !MEB DX?
              R2DY   = 1./(2.*DY(I,J))   !MEB DY?  
              QUDX   = (Q1D(I+1,J)*UWND(I+1,J)-Q1D(I-1,J)*UWND(I-1,J))*R2DX
              QVDY   = (Q1D(I,J+1)*VWND(I,J+1)-Q1D(I,J-1)*VWND(I,J-1))*R2DY
              QCNVG(I,J) = -(QUDX + QVDY)
+           ELSE
+             QCNVG(I,J) = SPVAL
            ENDIF
          ENDDO
        ENDDO
@@ -119,8 +122,13 @@
          ISTA = 1+MOD(J+1,2)
          IEND = IM-MOD(J,2)
          DO I=ISTA,IEND
+          IF(Q1D(I,J-1)<SPVAL.AND.Q1D(I+IVW(J),J)<SPVAL.AND.&
+             Q1D(I+IVE(J),J)<SPVAL.AND.Q1D(I,J+1)<SPVAL) THEN
            QV(I,J) = D25*(Q1D(I,J-1)+Q1D(I+IVW(J),J)                   &
                          +Q1D(I+IVE(J),J)+Q1D(I,J+1))
+          ELSE
+           QV(I,J) = SPVAL
+          ENDIF
          END DO
        END DO
 
@@ -132,6 +140,8 @@
        DO J=JSTA_M2,JEND_M2
          IEND = IM-1-MOD(J,2)
          DO I=2,IEND
+          IF(QV(I+IHE(J),J)<SPVAL.AND.UWND(I+IHE(J),J)<SPVAL.AND.&
+             QV(I+IHW(J),J)<SPVAL.AND.UWND(I+IHW(J),J)<SPVAL) THEN
            R2DX   = 1./(2.*DX(I,J))
            R2DY   = 1./(2.*DY(I,J))
            QUDX   = (QV(I+IHE(J),J)*UWND(I+IHE(J),J)                   &
@@ -139,15 +149,24 @@
            QVDY   = (QV(I,J+1)*VWND(I,J+1)-QV(I,J-1)*VWND(I,J-1))*R2DY
 
            QCNVG(I,J) = -(QUDX + QVDY) * HBM2(I,J)
+          ELSE
+           QCNVG(I,J) = SPVAL
+          ENDIF
          ENDDO
        ENDDO
       ELSE IF(gridtype=='B')THEN
      
        CALL EXCH_F(UWND)
 !
-!$omp  parallel do private(i,j,iend,qudx,qvdy,r2dx,r2dy)
+!$omp  parallel do private(i,j,qudx,qvdy,r2dx,r2dy)
        DO J=JSTA_M,JEND_M
         DO I=2,IM-1
+         IF(UWND(I,J)<SPVAL.AND.UWND(I,J-1)<SPVAL.AND.&
+            UWND(I-1,J)<SPVAL.AND.UWND(I-1,J-1)<SPVAL.AND.&
+            Q1D(I,J)<SPVAL.AND.Q1D(I+1,J)<SPVAL.AND.Q1D(I-1,J)<SPVAL.AND.&
+            VWND(I,J)<SPVAL.AND.VWND(I-1,J)<SPVAL.AND.&
+            VWND(I,J-1)<SPVAL.AND.VWND(I-1,J-1)<SPVAL.AND.&
+            Q1D(I,J+1)<SPVAL.AND.Q1D(I,J-1)<SPVAL) THEN
           R2DX   = 1./DX(I,J)
           R2DY   = 1./DY(I,J)
           QUDX=(0.5*(UWND(I,J)+UWND(I,J-1))*0.5*(Q1D(I,J)+Q1D(I+1,J))        &
@@ -156,6 +175,9 @@
                -0.5*(VWND(I,J-1)+VWND(I-1,J-1))*0.5*(Q1D(I,J)+Q1D(I,J-1)))*R2DY
   
           QCNVG(I,J) = -(QUDX + QVDY)
+         ELSE
+          QCNVG(I,J) = SPVAL
+         ENDIF
 !	  print*,'mcvg=',i,j,r2dx,r2dy,QCNVG(I,J)
         ENDDO
        ENDDO

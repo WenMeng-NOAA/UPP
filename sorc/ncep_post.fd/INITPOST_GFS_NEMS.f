@@ -1,48 +1,50 @@
-       SUBROUTINE INITPOST_GFS_NEMS(NREC,iostatusFlux,iostatusD3D,   &
+!> @file
+!                .      .    .     
+!> SUBPROGRAM:    INITPOST    INITIALIZE POST FOR RUN
+!!   PRGRMMR: Hui-Ya Chuang    DATE: 2007-03-01
+!!     
+!! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
+!!   VARIABLES AT THE START OF GFS MODEL OR POST 
+!!   PROCESSOR RUN.
+!!
+!! REVISION HISTORY
+!!   2011-02-07 Jun Wang    add grib2 option
+!!   2011-12-14 Sarah Lu    add aer option
+!!   2012-01-07 Sarah Lu    compute air density
+!!   2012-12-22 Sarah Lu    add aerosol zerout option
+!!   2015-03-16 S. Moorthi  adding gocart_on option
+!!   2015-03-18 S. Moorthi  Optimization including threading
+!!   2015-08-17 S. Moorthi  Add TKE for NEMS/GSM
+!!   2021-03-11 Bo Cui      change local arrays to dimension (im,jsta:jend)
+!!
+!! USAGE:    CALL INIT
+!!   INPUT ARGUMENT LIST:
+!!     NONE     
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     NONE
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!       NONE
+!!     LIBRARY:
+!!       COMMON   - CTLBLK
+!!                  LOOKUP
+!!                  SOILDEPTH
+!!
+!!    
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN
+!!     MACHINE : CRAY C-90
+!!
+      SUBROUTINE INITPOST_GFS_NEMS(NREC,iostatusFlux,iostatusD3D,   &
                                    iostatusAER,nfile,ffile,rfile)
 !       SUBROUTINE INITPOST_GFS_NEMS(NREC,iostatusFlux,iostatusD3D,nfile,ffile)
 
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
-! SUBPROGRAM:    INITPOST    INITIALIZE POST FOR RUN
-!   PRGRMMR: Hui-Ya Chuang    DATE: 2007-03-01
-!     
-! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
-!   VARIABLES AT THE START OF GFS MODEL OR POST 
-!   PROCESSOR RUN.
-!
-! REVISION HISTORY
-!   2011-02-07 Jun Wang    add grib2 option
-!   2011-12-14 Sarah Lu    add aer option
-!   2012-01-07 Sarah Lu    compute air density
-!   2012-12-22 Sarah Lu    add aerosol zerout option
-!   2015-03-16 S. Moorthi  adding gocart_on option
-!   2015-03-18 S. Moorthi  Optimization including threading
-!   2015-08-17 S. Moorthi  Add TKE for NEMS/GSM
-!
-! USAGE:    CALL INIT
-!   INPUT ARGUMENT LIST:
-!     NONE     
-!
-!   OUTPUT ARGUMENT LIST: 
-!     NONE
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!       NONE
-!     LIBRARY:
-!       COMMON   - CTLBLK
-!                  LOOKUP
-!                  SOILDEPTH
-!
-!    
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN
-!     MACHINE : CRAY C-90
-!$$$  
+
       use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO 
       use vrbls3d, only: t, q, uh, vh, pmid, pint, alpint, dpres, zint, zmid, o3,               &
               qqr, qqs, cwm, qqi, qqw, omga, rhomid, q2, cfr, rlwtt, rswtt, tcucn,              &
@@ -82,6 +84,7 @@
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat
       use rqstfld_mod,  only: igds, avbl, iq, is
+      use upp_physics, only: fpvsnew
 !     use wrf_io_flags_mod, only:                    ! Do we need this?
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
@@ -101,7 +104,6 @@
 !     real,parameter:: con_eps     =con_rd/con_rv
 !     real,parameter:: con_epsm1   =con_rd/con_rv-1
 !
-!      real,external::FPVSNEW
 ! This version of INITPOST shows how to initialize, open, read from, and
 ! close a NetCDF dataset. In order to change it to read an internal (binary)
 ! dataset, do a global replacement of _ncd_ with _int_. 
@@ -136,14 +138,14 @@
       integer nfhour ! forecast hour from nems io file
       REAL RINC(5)
 
-      REAL DUMMY(IM,JM), DUMMY2(IM,JM), FI(IM,JM,2)
+      REAL DUMMY(IM,JM), DUMMY2(IM,JM)
+      real, allocatable :: fi(:,:,:)
 !jw
       integer ii,jj,js,je,iyear,imn,iday,itmp,ioutcount,istatus,       &
               I,J,L,ll,k,kf,irtn,igdout,n,Index,nframe,                &
               impf,jmpf,nframed2,iunitd3d,ierr,idum,iret
       real    TSTART,TLMH,TSPH,ES,FACT,soilayert,soilayerb,zhour,dum,  &
               tvll,pmll,tv
-      real, external :: fpvsnew
 
       character*8, allocatable :: recname(:)
       character*16,allocatable :: reclevtyp(:)
@@ -389,7 +391,7 @@
 !        end if
 !      end if
       
-!       if(jsta.le.594.and.jend.ge.594)print*,'gdlon(120,594)= ',
+!       if(jsta<=594.and.jend>=594)print*,'gdlon(120,594)= ',
 !     + gdlon(120,594)
 
       
@@ -498,7 +500,7 @@
 !      call ext_int_get_dom_ti_integer(DataHandle,'RESTARTBIN',itmp
 !     + ,1,ioutcount,istatus)
       
-!      IF(itmp .LT. 1)THEN
+!      IF(itmp < 1)THEN
 !        RESTRT=.FALSE.
 !      ELSE
 !        RESTRT=.TRUE.
@@ -859,6 +861,7 @@
       endif
 
       allocate(wrk1(im,jsta:jend),wrk2(im,jsta:jend))
+      allocate(fi(im,jsta:jend,2))
 
 !$omp parallel do private(i,j)
       do j=jsta,jend
@@ -913,7 +916,7 @@
           'alpint=',ALPINT(ii,jj,l),'pmid=',LOG(PMID(Ii,Jj,L)),'pmid(l-1)=',    &
           LOG(PMID(Ii,Jj,L-1)),'zmd=',ZMID(Ii,Jj,L),'zmid(l-1)=',ZMID(Ii,Jj,L-1)
       ENDDO
-      deallocate(wrk1,wrk2)
+      deallocate(wrk1,wrk2,fi)
 
 
       if (gocart_on) then

@@ -8,10 +8,11 @@
       ,SNO   (:,:),TSHLTR   (:,:),QSHLTR(:,:), MRSHLTR(:,:)                  &
       ,V10(:,:),ACPREC(:,:),CUPREC(:,:),ANCPRC(:,:),CUPPT(:,:)               &
       ,SMSTAV(:,:),SSROFF(:,:),BGROFF(:,:),VEGFRC(:,:)                       &
+      ,SHDMIN(:,:),SHDMAX(:,:),LAI(:,:)                                      &
       ,ACSNOW(:,:),ACSNOM(:,:),CMC(:,:),SST(:,:)                             &
       ,RSWIN(:,:),RLWIN(:,:),RLWTOA(:,:)                                     &
       ,LWDNBC(:,:),LWUPBC(:,:)                                               &
-      ,TG(:,:),SFCSHX(:,:),PSLP(:,:)                                         &
+      ,TG(:,:),SFCSHX(:,:),PSLP(:,:),T700(:,:),Z500(:,:),Z700(:,:)           &
       ,SFCLHX(:,:),FIS(:,:),T500(:,:),Z1000(:,:),SLP(:,:)                    &
       ,CFRACL(:,:),CFRACM(:,:),CFRACH(:,:),ACFRST(:,:)                       &
       ,ACFRCV(:,:),NCFRST(:,:),NCFRCV(:,:),HBOT(:,:)                         &
@@ -27,7 +28,7 @@
       ,PBLH(:,:),PBLHGUST(:,:),HBOTD(:,:),HTOPD(:,:),HBOTS(:,:),HTOPS(:,:)   &
       ,CLDEFI(:,:),ALBASE(:,:),SI(:,:),LSPA(:,:)                             &
       ,RSWINC(:,:),VIS(:,:),PD(:,:),MXSNAL(:,:),MIXHT(:,:)                   &
-      ,SNONC(:,:),EPSR(:,:),RSWTOA(:,:)                                      &
+      ,SNONC(:,:),EPSR(:,:),RSWTOA(:,:),TEQL(:,:)                                      &
 ! HWRF additions
       ,MDLTAUX(:,:),MDLTAUY(:,:),CD10(:,:),CH10(:,:)  &
       ,ACSWUPT(:,:),SWDNT(:,:),ACSWDNT(:,:) &
@@ -45,10 +46,12 @@
       ,REL_VORT_MAX(:,:),REL_VORT_MAX01(:,:),REL_VORT_MAXHY1(:,:)            &
       ,WSPD10UMAX(:,:),WSPD10VMAX(:,:)                                       &
       ,REFDM10C_MAX(:,:),HAIL_MAX2D(:,:),HAIL_MAXK1(:,:)                     &
+      ,HAIL_MAXHAILCAST(:,:)                                                 &
       ,NCI_LTG(:,:),NCA_LTG(:,:),NCI_WQ(:,:),NCA_WQ(:,:)                     &
-      ,NCI_REFD(:,:),NCA_REFD(:,:)                                           &
+      ,NCI_REFD(:,:),NCA_REFD(:,:),RAINC_BUCKET1(:,:),RAINNC_BUCKET1(:,:)   &
       ,RAINC_BUCKET(:,:),RAINNC_BUCKET(:,:),SNOW_BUCKET(:,:)                 &
       ,GRAUP_BUCKET(:,:),PCP_BUCKET(:,:),ACGRAUP(:,:),ACFRAIN(:,:)           &
+      ,SNOW_BUCKET1(:,:),GRAUP_BUCKET1(:,:),PCP_BUCKET1(:,:)                 &
       ,SNOWNC(:,:),GRAUPELNC(:,:),TMAX(:,:),W_MEAN(:,:)                      &
       ,TSNOW(:,:),QVG(:,:),QV2m(:,:),QVl1(:,:)                               &
       ,REFC_10CM(:,:), REF1KM_10CM(:,:), REF4KM_10CM(:,:)                    &
@@ -77,7 +80,8 @@
       ,airdiffswin(:,:),snowfall(:,:),acond(:,:),edir(:,:),ecan(:,:) &
       ,etrans(:,:),esnow(:,:),avgedir(:,:),avgecan(:,:),avgetrans(:,:)&
       ,avgesnow(:,:),avgpotevp(:,:),avgprec_cont(:,:),avgcprate_cont(:,:)&
-      ,ti(:,:)
+      ,ti(:,:),aod550(:,:),du_aod550(:,:),ss_aod550(:,:),su_aod550(:,:)      &
+      ,bc_aod550(:,:),oc_aod550(:,:)
       integer, allocatable :: IVGTYP(:,:),ISLTYP(:,:),ISLOPE(:,:) 
 ! Add 2d aerosol diagnosis fields for GOCART (NGAC)
       real, allocatable ::                                                   &

@@ -1,85 +1,90 @@
-
+!> @file
+!
+!>
+!!                .      .    .     
+!! SUBPROGRAM:    CALLLWS       COMPUTES Low Level Wind Shear (0-2000feet) 
+!!   PRGRMMR: Binbin Zhou      /NCEP/EMC  DATE: 2005-08-16       
+!!   19-10-30  Bo CUI          - REMOVE "GOTO" STATEMENT
+!!   21-04-01  Jesse Meng      - computation on defined points only
+!!     
+!! ABSTRACT:  
+!!    This program computes the low level wind shear(LLWS) over 0-2000 feet (0-609.5m)
+!!    layer. But because 10m wind represent sfc wind, 10-619.5 m layer
+!!    is used. (NOAA/NWS Instruction 10-813, 2004)
+!!
+!!    Definition: LLWS(Z1,Z2) is vector difference of wind at z1 and z2
+!!          where Z1 = 10m   + Surface height
+!!                Z2 = 619.5 + Surface height
+!!
+!!    Algorithm: since Z2 is not defined in the model, so,
+!!           first thing is searching Z2  to see which layers 
+!!               it is located(ie between which two pressure levels), 
+!!           then find the wind vector (U2,V2)at Z2 by interpolating with 
+!!               the wind vectors of the at pressure levels above and below
+!!           then compute the vector difference between Z2 and Z1 (ie U10,V10)
+!!
+!!
+!!
+!!<pre>                               
+!!      ----------------------------------------- K2-1 ---------------------
+!!                            ^
+!!                            |
+!!                            |
+!!                            |            
+!!                 ____       |  _____ Z2, U2=interpo[U(K2),U(K2-1)]
+!!                  ^         |            V2=interpo[V(K2),V(K2-1)]
+!!                  |         |                       
+!!      ------------|---------|------------------ K2 ------------------------
+!!                  |         |
+!!                  |         |DH=SUM of all layers between K1-1 & K2-1 
+!!                  |         |                                            .              
+!!                  |609.5m   |                                            .
+!!                  |(2000ft) |                                            .
+!!                  |         v
+!!      ------------|---------------------------------------------------- LSM-2
+!!                  |               ^
+!!                  |               |ZH1   
+!!                  |               |
+!!                 o-o 10m       ___v__ Z1,U10,V10                 
+!!       FIS    ....|.....          ^
+!!        ^   .            .        |
+!!      --|-------------------------|------------ K1 -------------------- LSM-1
+!!        | .                .      |
+!!        |.                  .     |
+!!       .|                    ...  |
+!!      --|-------------------------|------------------------------------- LSM
+!!      . |                         |
+!!     ////////////////////////////////////////////////////////////////// Sea Level
+!!</pre>                               
+!!
+!!
+!! USAGE:    CALL CALLLWS(U,V,H,LLWS)
+!!   INPUT ARGUMENT LIST:
+!!     U     - U wind profile (m/s) (at pressure level)
+!!     V     - V wind (m/s)         (at pressure level)
+!!     H     - Height (m)           (at pressure level)
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     LLWS  - Low level wind shear (Knots/2000ft) 
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!     LIBRARY:
+!!       NONE
+!!     
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN 90/77
+!!     MACHINE : BLUE AT NCEP
+!!
       SUBROUTINE CALLLWS(U,V,H,LLWS)
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
-! SUBPROGRAM:    CALLLWS       COMPUTES Low Level Wind Shear (0-2000feet) 
-!   PRGRMMR: Binbin Zhou      /NCEP/EMC  DATE: 2005-08-16       
-!     
-! ABSTRACT:  
-!    This program computes the low level wind shear(LLWS) over 0-2000 feet (0-609.5m)
-!    layer. But because 10m wind represent sfc wind, 10-619.5 m layer
-!    is used. (NOAA/NWS Instruction 10-813, 2004)
-!
-!    Definition: LLWS(Z1,Z2) is vector difference of wind at z1 and z2
-!          where Z1 = 10m   + Surface height
-!                Z2 = 619.5 + Surface height
-!
-!    Algorithm: since Z2 is not defined in the model, so,
-!           first thing is searching Z2  to see which layers 
-!               it is located(ie between which two pressure levels), 
-!           then find the wind vector (U2,V2)at Z2 by interpolating with 
-!               the wind vectors of the at pressure levels above and below
-!           then compute the vector difference between Z2 and Z1 (ie U10,V10)
-!
-!
-!
-!                               
-!      ----------------------------------------- K2-1 ---------------------
-!                            ^
-!                            |
-!                            |
-!                            |            
-!                 ____       |  _____ Z2, U2=interpo[U(K2),U(K2-1)]
-!                  ^         |            V2=interpo[V(K2),V(K2-1)]
-!                  |         |                       
-!      ------------|---------|------------------ K2 ------------------------
-!                  |         |
-!                  |         |DH=SUM of all layers between K1-1 & K2-1 
-!                  |         |                                            .              
-!                  |609.5m   |                                            .
-!                  |(2000ft) |                                            .
-!                  |         v
-!      ------------|---------------------------------------------------- LSM-2
-!                  |               ^
-!                  |               |ZH1   
-!                  |               |
-!                 o-o 10m       ___v__ Z1,U10,V10                 
-!       FIS    ....|.....          ^
-!        ^   .            .        |
-!      --|-------------------------|------------ K1 -------------------- LSM-1
-!        | .                .      |
-!        |.                  .     |
-!       .|                    ...  |
-!      --|-------------------------|------------------------------------- LSM
-!      . |                         |
-!     ////////////////////////////////////////////////////////////////// Sea Level
-!
-!
-! USAGE:    CALL CALLLWS(U,V,H,LLWS)
-!   INPUT ARGUMENT LIST:
-!     U     - U wind profile (m/s) (at pressure level)
-!     V     - V wind (m/s)         (at pressure level)
-!     H     - Height (m)           (at pressure level)
-!
-!   OUTPUT ARGUMENT LIST: 
-!     LLWS  - Low level wind shear (Knots/2000ft) 
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!     LIBRARY:
-!       NONE
-!     
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN 90/77
-!     MACHINE : BLUE AT NCEP
-!$$$  
+
 !
       USE vrbls2d, only: fis, u10, v10
       use params_mod, only: gi
-      use ctlblk_mod, only: jsta, jend, im, jm, lsm
+      use ctlblk_mod, only: jsta, jend, im, jm, lsm, spval
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
@@ -100,11 +105,11 @@
  
           Z1 = 10.0 + FIS(I,J)*GI                              !Height of 10m levels geographic height (from sea level)
           
-          IF(Z1.LT.H(I,J,LSM)) THEN                            !First search location of 10m wind level
+          IF(Z1<H(I,J,LSM)) THEN                            !First search location of 10m wind level
             K1 = LSM + 1                                       !to see it is in which pressure levels
           ELSE
             DO LP = LSM,2,-1                                   !If not found, keep searching upward                              
-             IF(Z1.GE.H(I,J,LP).AND.Z1.LT.H(I,J,LP-1)) THEN
+             IF(Z1>=H(I,J,LP).AND.Z1<H(I,J,LP-1)) THEN
                K1 = LP 
              END IF
             END DO
@@ -114,29 +119,29 @@
  
           DH = 0.0
 
-          IF((HZ1+10).GT.609.6) THEN                            !Then, search 2000ft(609.6m) location
+          IF((HZ1+10)>609.6) THEN                            !Then, search 2000ft(609.6m) location
             U2= U10(I,J) + (U(I,J,K1-1)-U10(I,J))*599.6/HZ1     !found it between K1-1 and K1, then linear
             V2= V10(I,J) + (V(I,J,K1-1)-V10(I,J))*599.6/HZ1     !interpolate to get wind at 2000ft U2,V2     
             Z2= FIS(I,J)*GI + 609.6
           ELSE                                                 !otherwise, keep on search upward
             DO LP = K1-1,2,-1
              DH=DH+(H(I,J,LP-1) - H(I,J,LP))
-             IF((DH+HZ1+10).gt.609.6) THEN                      !found the 2000ft level 
+             IF((DH+HZ1+10)>609.6) THEN                      !found the 2000ft level 
                Z2=FIS(I,J)*GI+609.6   
                RT=(Z2-H(I,J,LP))/(H(I,J,LP-1)-H(I,J,LP))
                U2=U(I,J,LP)+RT*(U(I,J,LP-1)-U(I,J,LP))
                V2=V(I,J,LP)+RT*(V(I,J,LP-1)-V(I,J,LP))
                K2=LP
-               GO TO 610
+               exit
               END IF
              END DO
             END IF
 
 !computer vector difference
-610       LLWS(I,J)=SQRT((U2-U10(I,J))**2+(V2-V10(I,J))**2)/     &
+         LLWS(I,J) = spval
+         if(U10(I,J)<spval.and.V10(I,J)<spval)                   &
+          LLWS(I,J)=SQRT((U2-U10(I,J))**2+(V2-V10(I,J))**2)/     &
                     609.6 * 1.943*609.6                         !unit: knot/2000ft
-
- 
         ENDDO
  
 100   CONTINUE     
@@ -191,7 +196,7 @@
 !     MACHINE : BLUE AT NCEP
 !$$$  
 !
-      use ctlblk_mod, only: jsta, jend, im
+      use ctlblk_mod, only: jsta, jend, im, spval
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !     
@@ -205,7 +210,7 @@
 !
       DO J=JSTA,JEND
         DO I=1,IM
-
+        IF(OMGA(I,J)<SPVAL.AND.T1(I,J)<SPVAL.AND.RH(I,J)<SPVAL) THEN
          IF(OMGA(I,J) < 0.0 .AND.                       &
             (T1(I,J) <= 273.0 .AND. T1(I,J) >= 251.0)   &
               .AND. RH(I,J) >= 70.0) THEN
@@ -214,6 +219,9 @@
          ELSE
            ICING(I,J) = 0.0
          END IF
+        ELSE
+           ICING(I,J) = SPVAL
+        ENDIF
         ENDDO
       ENDDO
 
@@ -332,6 +340,8 @@
         DO I=ISTART,ISTOP
 !
           IF(GRIDTYPE=='B')THEN
+           IF(U(I,J)<spval.and.U(I,J-1)<spval.and.U(I-1,J)<spval.and.U(I-1,J-1)<spval.and.&
+              V(I,J)<spval.and.V(I,J-1)<spval.and.V(I-1,J)<spval.and.V(I-1,J-1)<spval)THEN
 !dsh=dv/dx+du/dy 
            DSH=(0.5*(V(I,J)+V(I,J-1))-0.5*(V(I-1,J)+V(I-1,J-1)))*10000./DX(I,J) &
 	      +(0.5*(U(I,J)+U(I-1,J))-0.5*(U(I,J-1)+U(I-1,J-1)))*10000./DY(I,J)
@@ -343,7 +353,13 @@
 !cvg=-(du/dx+dv/dy)
            CVG = -((0.5*(U(I,J)+U(I,J-1))-0.5*(U(I-1,J)+U(I-1,J-1)))*10000./DX(I,J) &
                 +(0.5*(V(I,J)+V(I-1,J))-0.5*(V(I,J-1)+V(I-1,J-1)))*10000./DY(I,J))	   
+           ELSE
+            DEF = SPVAL
+            CVG = SPVAL
+           ENDIF
           ELSE
+           IF(U(I,J+1)<spval.and.U(I,J-1)<spval.and.U(I+IHE(J),J)<spval.and.U(I+IHW(J),J)<spval.and.&
+              V(I,J+1)<spval.and.V(I,J-1)<spval.and.V(I+IHE(J),J)<spval.and.V(I+IHW(J),J)<spval)THEN
 !dsh=dv/dx+du/dy           
            DSH = (V(I+IHE(J),J) - V(I+IHW(J),J))*10000./(2*DX(I,J))   &  
               + (U(I,J+1) - U(I,J-1))*10000./(2*DY(I,J))
@@ -357,54 +373,120 @@
 !cvg=-(du/dx+dv/dy)
            CVG = -( (U(I+IHE(J),J) - U(I+IHW(J),J))*10000./(2*DX(I,J)) &
                   +(V(I,J+1) - V(I,J-1))*10000./(2*DY(I,J)) )
+           ELSE
+            DEF = SPVAL
+            CVG = SPVAL
+           ENDIF
           END IF
 	  
           IF(GRIDTYPE == 'A')THEN
 !vws=d|U|/dz
+           IF(U_OLD(I,J)<spval.and.U(I,J)<spval.and.&
+              V_OLD(I,J)<spval.and.V(I,J)<spval.and.&
+              H_OLD(I,J)<spval.and.H(I,J)<spval)THEN
            VWS = ( SQRT(U_OLD(I,J)**2+V_OLD(I,J)**2 ) -               &
                   SQRT(U(I,J)**2+V(I,J)**2 )   ) *                    &
                   1000.0/(H_OLD(I,J) - H(I,J))
+           ELSE
+            VWS = SPVAL
+           ENDIF
           else IF(GRIDTYPE == 'E')THEN
 !vws=d|U|/dz
+           IF(U_OLD(I+IHE(J),J)<spval.and.U(I+IHE(J),J)<spval.and.&
+              V_OLD(I+IHE(J),J)<spval.and.V(I+IHE(J),J)<spval)THEN
+            
 	   VWS1 = ( SQRT(U_OLD(I+IHE(J),J)**2+V_OLD(I+IHE(J),J)**2 ) -&
                   SQRT(U(I+IHE(J),J)**2+V(I+IHE(J),J)**2 )   ) 
+           ELSE
+            VWS1 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I+IHW(J),J)<spval.and.U(I+IHW(J),J)<spval.and.&
+              V_OLD(I+IHW(J),J)<spval.and.V(I+IHW(J),J)<spval)THEN
            VWS2 = ( SQRT(U_OLD(I+IHW(J),J)**2+V_OLD(I+IHW(J),J)**2 ) -&   
                   SQRT(U(I+IHW(J),J)**2+V(I+IHW(J),J)**2 )   ) 
+           ELSE
+            VWS2 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I,J-1)<spval.and.U(I,J-1)<spval.and.&
+              V_OLD(I,J-1)<spval.and.V(I,J-1)<spval)THEN
            VWS3 = ( SQRT(U_OLD(I,J-1)**2+V_OLD(I,J-1)**2 ) -          & 
                   SQRT(U(I,J-1)**2+V(I,J-1)**2 )   ) 
+           ELSE
+            VWS3 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I,J+1)<spval.and.U(I,J+1)<spval.and.&
+              V_OLD(I,J+1)<spval.and.V(I,J+1)<spval)THEN
            VWS4 = ( SQRT(U_OLD(I,J+1)**2+V_OLD(I,J+1)**2 ) -          & 
                   SQRT(U(I,J+1)**2+V(I,J+1)**2 )   ) 
+           ELSE
+            VWS4 = SPVAL
+           ENDIF
+
+           IF(VWS1<spval.and.VWS2<spval.and.VWS3<spval.and.VWS4<spval.and.&
+              H_OLD(I,J)<spval.and.H(I,J)<spval)THEN
            VWS=1000.0*(VWS1+VWS2+VWS3+VWS4)/4.0/(H_OLD(I,J) - H(I,J))
+           ELSE
+            VWS = SPVAL
+           ENDIF
 	  ELSE IF(GRIDTYPE == 'B')THEN
+           IF(U_OLD(I+IHE(J),J)<spval.and.U(I+IHE(J),J)<spval.and.&
+              V_OLD(I+IHE(J),J)<spval.and.V(I+IHE(J),J)<spval)THEN
 	   VWS1 = ( SQRT(U_OLD(I+IHE(J),J)**2+V_OLD(I+IHE(J),J)**2 ) -&
                   SQRT(U(I+IHE(J),J)**2+V(I+IHE(J),J)**2 )   ) 
+           ELSE
+            VWS1 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I+IHW(J),J)<spval.and.U(I+IHW(J),J)<spval.and.&
+              V_OLD(I+IHW(J),J)<spval.and.V(I+IHW(J),J)<spval)THEN
            VWS2 = ( SQRT(U_OLD(I+IHW(J),J)**2+V_OLD(I+IHW(J),J)**2 ) -&   
                   SQRT(U(I+IHW(J),J)**2+V(I+IHW(J),J)**2 )   ) 
+           ELSE
+            VWS2 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I,J-1)<spval.and.U(I,J-1)<spval.and.&
+              V_OLD(I,J-1)<spval.and.V(I,J-1)<spval)THEN
            VWS3 = ( SQRT(U_OLD(I,J-1)**2+V_OLD(I,J-1)**2 ) -          & 
                   SQRT(U(I,J-1)**2+V(I,J-1)**2 )   ) 
+           ELSE
+            VWS3 = SPVAL
+           ENDIF
 !vws=d|U|/dz
+           IF(U_OLD(I-1,J-1)<spval.and.U(I-1,J-1)<spval.and.&
+              V_OLD(I-1,J-1)<spval.and.V(I-1,J-1)<spval)THEN
            VWS4 = ( SQRT(U_OLD(I-1,J-1)**2+V_OLD(I-1,J-1)**2 ) -          & 
                   SQRT(U(I-1,J-1)**2+V(I-1,J-1)**2 )   ) 
+           ELSE
+            VWS4 = SPVAL
+           ENDIF
+
+           IF(VWS1<spval.and.VWS2<spval.and.VWS3<spval.and.VWS4<spval.and.&
+              H_OLD(I,J)<spval.and.H(I,J)<spval)THEN
            VWS=1000.0*(VWS1+VWS2+VWS3+VWS4)/4.0/(H_OLD(I,J) - H(I,J)) 
+           ELSE
+            VWS=SPVAL
+           ENDIF
 	  END IF  
-           
+          
+         IF(VWS<spval.and.DEF<spval.and.CVG<spval)THEN 
           TRBINDX = ABS(VWS)*(DEF + ABS(CVG))
 	  
-          IF(TRBINDX.LE.4.) THEN
+          IF(TRBINDX<=4.) THEN
             CAT(I,J) = 0.0
-          ELSE IF(TRBINDX.LE.8.) THEN
+          ELSE IF(TRBINDX<=8.) THEN
             CAT(I,J)=1.0
-          ELSE IF(TRBINDX.LE.12.) THEN
+          ELSE IF(TRBINDX<=12.) THEN
             CAT(I,J)=2.0
           ELSE
             CAT(I,J)=3.0
           END IF        
- 
+         ELSE
+          CAT(I,J)=SPVAL
+         ENDIF
         ENDDO
  
 100   CONTINUE     
@@ -449,7 +531,7 @@
 
       USE vrbls2d, only: fis
       use params_mod, only: small, gi
-      use ctlblk_mod, only: jsta, jend, spval, im
+      use ctlblk_mod, only: jsta, jend, spval, im, modelname
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !     
@@ -466,7 +548,11 @@
           IF(ABS(TCLD(I,J)-SPVAL) <= SMALL) THEN
             CEILING(I,J)=SPVAL
           ELSE IF(TCLD(I,J) >= 50.) THEN
-            CEILING(I,J) = CLDZ(I,J) ! for RAP/HRRR   - FIS(I,J)*GI
+            if(MODELNAME == 'RAPR')then
+              CEILING(I,J) = CLDZ(I,J) - FIS(I,J)*GI
+            else
+              CEILING(I,J) = CLDZ(I,J) ! for RAP/HRRR   - FIS(I,J)*GI
+            endif
           ELSE
             CEILING(I,J) = 20000.0
           END IF
@@ -519,7 +605,7 @@
 !$$$  
 !
       use vrbls2d, only: vis
-      use ctlblk_mod, only: jsta, jend, im
+      use ctlblk_mod, only: jsta, jend, im, spval
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !     
@@ -536,25 +622,28 @@
       DO J=JSTA,JEND
         DO I=1,IM
  
+        IF(CEILING(I,J)<spval.and.VIS(I,J)<spval)THEN
           CEIL = CEILING(I,J) * 3.2808               !from m -> feet
           VISI = VIS(I,J) / 1609.0                   !from m -> miles       
 
-          IF(CEIL.LT.500.0 .OR. VISI.LT.1.0 ) THEN
+          IF(CEIL<500.0 .OR. VISI<1.0 ) THEN
              FLTCND(I,J) = 1.0
 
-          ELSE IF( (CEIL.GE.500.AND.CEIL.LT.1000.0) .OR.          &
-                   (VISI.GE.1.0.AND.VISI.LT.3.0) ) THEN
+          ELSE IF( (CEIL>=500.AND.CEIL<1000.0) .OR.          &
+                   (VISI>=1.0.AND.VISI<3.0) ) THEN
              FLTCND(I,J) = 2.0
 
-          ELSE IF( (CEIL.GE.1000.AND.CEIL.LE.3000.0) .OR.         &
-                   (VISI.GE.3.0.AND.VISI.LE.5.0) ) THEN
+          ELSE IF( (CEIL>=1000.AND.CEIL<=3000.0) .OR.         &
+                   (VISI>=3.0.AND.VISI<=5.0) ) THEN
              FLTCND(I,J) = 3.0
 
-          ELSE IF( CEIL.GT.3000.0  .OR. VISI.GT.5.0) THEN
+          ELSE IF( CEIL>3000.0  .OR. VISI>5.0) THEN
              FLTCND(I,J) = 4.0
 
           END IF
-
+        ELSE
+          FLTCND(I,J) = SPVAL
+        ENDIF
         ENDDO
       ENDDO
 

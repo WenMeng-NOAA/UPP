@@ -1,40 +1,42 @@
-       SUBROUTINE INITPOST_NETCDF(ncid3d)
-
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!> @file
 !                .      .    .     
-! SUBPROGRAM:    INITPOST_NETCDF  INITIALIZE POST FOR RUN
-!   PRGRMMR: Hui-Ya Chuang    DATE: 2016-03-04
-!     
-! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
-!   VARIABLES AT THE START OF GFS MODEL OR POST 
-!   PROCESSOR RUN.
-!
-! REVISION HISTORY
-!   2017-08-11 H Chuang   start from INITPOST_GFS_NEMS_MPIIO.f 
-!
-! USAGE:    CALL INITPOST_NETCDF
-!   INPUT ARGUMENT LIST:
-!     NONE     
-!
-!   OUTPUT ARGUMENT LIST: 
-!     NONE
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!       NONE
-!     LIBRARY:
-!       COMMON   - CTLBLK
-!                  LOOKUP
-!                  SOILDEPTH
-!
-!    
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN
-!     MACHINE : CRAY C-90
-!$$$  
+!> SUBPROGRAM:    INITPOST_NETCDF  INITIALIZE POST FOR RUN
+!!   PRGRMMR: Hui-Ya Chuang    DATE: 2016-03-04
+!!     
+!! ABSTRACT:  THIS ROUTINE INITIALIZES CONSTANTS AND
+!!   VARIABLES AT THE START OF GFS MODEL OR POST 
+!!   PROCESSOR RUN.
+!!
+!! REVISION HISTORY
+!!   2017-08-11 H Chuang   start from INITPOST_GFS_NEMS_MPIIO.f 
+!!   2021-03-11 Bo Cui     change local arrays to dimension (im,jsta:jend)
+!!
+!! USAGE:    CALL INITPOST_NETCDF
+!!   INPUT ARGUMENT LIST:
+!!     NONE     
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     NONE
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!       NONE
+!!     LIBRARY:
+!!       COMMON   - CTLBLK
+!!                  LOOKUP
+!!                  SOILDEPTH
+!!
+!!    
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN
+!!     MACHINE : CRAY C-90
+!!
+      SUBROUTINE INITPOST_NETCDF(ncid3d)
+
+
       use netcdf
       use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO 
       use vrbls3d, only: t, q, uh, vh, pmid, pint, alpint, dpres, zint, zmid, o3,               &
@@ -43,7 +45,8 @@
               o3vdiff, o3prod, o3tndy, mwpv, unknown, vdiffzacce, zgdrag,cnvctummixing,         &
               vdiffmacce, mgdrag, cnvctvmmixing, ncnvctcfrac, cnvctumflx, cnvctdmflx,           &
               cnvctzgdrag, sconvmois, cnvctmgdrag, cnvctdetmflx, duwt, duem, dusd, dudp,        &
-              wh, qqg, ref_10cm
+              wh, qqg, ref_10cm, pmtf, ozcon
+
       use vrbls2d, only: f, pd, fis, pblh, ustar, z0, ths, qs, twbs, qwbs, avgcprate,           &
               cprate, avgprec, prec, lspa, sno, si, cldefi, th10, q10, tshltr, pshltr,          &
               tshltr, albase, avgalbedo, avgtcdc, czen, czmean, mxsnal, radot, sigt4,           &
@@ -62,7 +65,7 @@
               avgedir,avgecan,avgetrans,avgesnow,avgprec_cont,avgcprate_cont,rel_vort_max, &
               avisbeamswin,avisdiffswin,airbeamswin,airdiffswin,refdm10c_max,wspd10max, &
               alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg, &
-              ti 
+              ti,aod550,du_aod550,ss_aod550,su_aod550,oc_aod550,bc_aod550,prate_max
       use soil,  only: sldpth, sh2o, smc, stc
       use masks, only: lmv, lmh, htm, vtm, gdlat, gdlon, dx, dy, hbm2, sm, sice
       use physcons_post, only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
@@ -75,11 +78,13 @@
               jend_m, imin, imp_physics, dt, spval, pdtop, pt, qmin, nbin_du, nphs, dtq2, ardlw,&
               ardsw, asrfc, avrain, avcnvc, theat, gdsdegr, spl, lsm, alsl, im, jm, im_jm, lm,  &
               jsta_2l, jend_2u, nsoil, lp1, icu_physics, ivegsrc, novegtype, nbin_ss, nbin_bc,  &
-              nbin_oc, nbin_su, gocart_on, pt_tbl, hyb_sigp, filenameFlux, fileNameAER
+              nbin_oc, nbin_su, gocart_on, pt_tbl, hyb_sigp, filenameFlux, fileNameAER,         &
+              iSF_SURFACE_PHYSICS,rdaod, aqfcmaq_on
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat,lonstartv, lonlastv, cenlonv,    &
               latstartv, latlastv, cenlatv,latstart_r,latlast_r,lonstart_r,lonlast_r, STANDLON
       use rqstfld_mod,  only: igds, avbl, iq, is
+      use upp_physics, only: fpvsnew
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
 !
@@ -103,7 +108,6 @@
 !     real,parameter:: con_eps     =con_rd/con_rv
 !     real,parameter:: con_epsm1   =con_rd/con_rv-1
 !
-!     real,external::FPVSNEW
 ! This version of INITPOST shows how to initialize, open, read from, and
 ! close a NetCDF dataset. In order to change it to read an internal (binary)
 ! dataset, do a global replacement of _ncd_ with _int_. 
@@ -141,7 +145,7 @@
       real dtp !physics time step
       REAL RINC(5)
 
-      REAL DUMMY(IM,JM), DUMMY2(IM,JM), FI(IM,JM,2)
+      REAL DUMMY(IM,JM)
 !jw
       integer ii,jj,js,je,iyear,imn,iday,itmp,ioutcount,istatus,       &
               I,J,L,ll,k,kf,irtn,igdout,n,Index,nframe,                &
@@ -149,7 +153,6 @@
       integer ncid3d,ncid2d,varid,nhcas
       real    TSTART,TLMH,TSPH,ES,FACT,soilayert,soilayerb,zhour,dum,  &
               tvll,pmll,tv, tx1, tx2
-      real, external :: fpvsnew
 
       character*20,allocatable :: recname(:)
       integer,     allocatable :: reclev(:), kmsk(:,:)
@@ -180,6 +183,192 @@
       real(kind=4),allocatable :: vcrd(:,:)
       real                     :: dum_const 
 
+! AQF
+
+      real, allocatable :: aacd(:,:,:), aalj(:,:,:)                    &
+                          ,aalk1j(:,:,:), aalk2j(:,:,:)                &
+                          ,abnz1j(:,:,:), abnz2j(:,:,:), abnz3j(:,:,:) &
+                          ,acaj(:,:,:), acet(:,:,:)                    &
+                          ,acli(:,:,:), aclj(:,:,:), aclk(:,:,:)       &
+                          ,acors(:,:,:), acro_primary(:,:,:)           &
+                          ,acrolein(:,:,:), aeci(:,:,:)                &
+                          ,aecj(:,:,:), afej(:,:,:)                    &
+                          ,aglyj(:,:,:)                                &
+                          ,ah2oi(:,:,:), ah2oj(:,:,:), ah2ok(:,:,:)    &
+                          ,ah3opi(:,:,:), ah3opj(:,:,:), ah3opk(:,:,:) &
+                          ,aiso1j(:,:,:), aiso2j(:,:,:), aiso3j(:,:,:) &
+                          ,aivpo1j(:,:,:), akj(:,:,:)                  &
+                          ,ald2(:,:,:), ald2_primary(:,:,:)            &
+                          ,aldx(:,:,:)                                 &
+                          ,alvoo1i(:,:,:), alvoo1j(:,:,:)              &
+                          ,alvoo2i(:,:,:), alvoo2j(:,:,:)              &
+                          ,alvpo1i(:,:,:), alvpo1j(:,:,:)              &
+                          ,amgj(:,:,:), amnj(:,:,:)                    &
+                          ,amgk(:,:,:), akk(:,:,:), acak(:,:,:)        &
+                          ,anai(:,:,:), anaj(:,:,:), anak(:,:,:)       &
+                          ,anh4i(:,:,:), anh4j(:,:,:), anh4k(:,:,:)    &
+                          ,ano3i(:,:,:), ano3j(:,:,:), ano3k(:,:,:)    &
+                          ,aolgaj(:,:,:), aolgbj(:,:,:), aorgcj(:,:,:) &
+                          ,aomi(:,:,:), aomj(:,:,:)                    &
+                          ,aothri(:,:,:), aothrj(:,:,:)                &
+                          ,apah1j(:,:,:), apah2j(:,:,:), apah3j(:,:,:) &
+                          ,apomi(:,:,:), apomj(:,:,:)                  &
+                          ,apcsoj(:,:,:), aseacat(:,:,:), asij(:,:,:)  &
+                          ,aso4i(:,:,:), aso4j(:,:,:), aso4k(:,:,:)    &
+                          ,asoil(:,:,:), asqtj(:,:,:)                  &
+                          ,asomi(:,:,:), asomj(:,:,:)                  &
+                          ,asvoo1i(:,:,:), asvoo1j(:,:,:)              &
+                          ,asvoo2i(:,:,:), asvoo2j(:,:,:)              &
+                          ,asvoo3j(:,:,:)                              &
+                          ,asvpo1i(:,:,:), asvpo1j(:,:,:)              &
+                          ,asvpo2i(:,:,:), asvpo2j(:,:,:)              &
+                          ,asvpo3j(:,:,:)                              &
+                          ,atij(:,:,:)                                 &
+                          ,atol1j(:,:,:), atol2j(:,:,:), atol3j(:,:,:) &
+                          ,atoti(:,:,:), atotj(:,:,:), atotk(:,:,:)    &
+                          ,atrp1j(:,:,:), atrp2j(:,:,:)                &
+                          ,axyl1j(:,:,:), axyl2j(:,:,:), axyl3j(:,:,:) &
+                          ,pm25ac(:,:,:), pm25at(:,:,:), pm25co(:,:,:)
+
+
+      if (me == 0) print *,' aqfcmaq_on=', aqfcmaq_on
+
+      if (aqfcmaq_on) then
+
+        allocate(aacd(im,jsta_2l:jend_2u,lm))
+        allocate(aalj(im,jsta_2l:jend_2u,lm))
+        allocate(aalk1j(im,jsta_2l:jend_2u,lm))
+        allocate(aalk2j(im,jsta_2l:jend_2u,lm))
+
+        allocate(abnz1j(im,jsta_2l:jend_2u,lm))
+        allocate(abnz2j(im,jsta_2l:jend_2u,lm))
+        allocate(abnz3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(acaj(im,jsta_2l:jend_2u,lm))
+        allocate(acet(im,jsta_2l:jend_2u,lm))
+
+        allocate(acli(im,jsta_2l:jend_2u,lm))
+        allocate(aclj(im,jsta_2l:jend_2u,lm))
+        allocate(aclk(im,jsta_2l:jend_2u,lm))
+
+        allocate(acors(im,jsta_2l:jend_2u,lm))
+        allocate(acro_primary(im,jsta_2l:jend_2u,lm))
+        allocate(acrolein(im,jsta_2l:jend_2u,lm))
+        allocate(aeci(im,jsta_2l:jend_2u,lm))
+        allocate(aecj(im,jsta_2l:jend_2u,lm))
+        allocate(afej(im,jsta_2l:jend_2u,lm))
+        allocate(aglyj(im,jsta_2l:jend_2u,lm))
+
+        allocate(ah2oi(im,jsta_2l:jend_2u,lm))
+        allocate(ah2oj(im,jsta_2l:jend_2u,lm))
+        allocate(ah2ok(im,jsta_2l:jend_2u,lm))
+
+        allocate(ah3opi(im,jsta_2l:jend_2u,lm))
+        allocate(ah3opj(im,jsta_2l:jend_2u,lm))
+        allocate(ah3opk(im,jsta_2l:jend_2u,lm))
+
+        allocate(aiso1j(im,jsta_2l:jend_2u,lm))
+        allocate(aiso2j(im,jsta_2l:jend_2u,lm))
+        allocate(aiso3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(aivpo1j(im,jsta_2l:jend_2u,lm))
+        allocate(akj(im,jsta_2l:jend_2u,lm))
+
+        allocate(ald2(im,jsta_2l:jend_2u,lm))
+        allocate(ald2_primary(im,jsta_2l:jend_2u,lm))
+
+        allocate(aldx(im,jsta_2l:jend_2u,lm))
+
+        allocate(alvoo1i(im,jsta_2l:jend_2u,lm))
+        allocate(alvoo1j(im,jsta_2l:jend_2u,lm))
+        allocate(alvoo2i(im,jsta_2l:jend_2u,lm))
+        allocate(alvoo2j(im,jsta_2l:jend_2u,lm))
+        allocate(alvpo1i(im,jsta_2l:jend_2u,lm))
+        allocate(alvpo1j(im,jsta_2l:jend_2u,lm))
+
+        allocate(amgj(im,jsta_2l:jend_2u,lm))
+        allocate(amnj(im,jsta_2l:jend_2u,lm))
+
+        allocate(anai(im,jsta_2l:jend_2u,lm))
+        allocate(anaj(im,jsta_2l:jend_2u,lm))
+        allocate(anak(im,jsta_2l:jend_2u,lm))
+
+        allocate(anh4i(im,jsta_2l:jend_2u,lm))
+        allocate(anh4j(im,jsta_2l:jend_2u,lm))
+        allocate(anh4k(im,jsta_2l:jend_2u,lm))
+
+        allocate(ano3i(im,jsta_2l:jend_2u,lm))
+        allocate(ano3j(im,jsta_2l:jend_2u,lm))
+        allocate(ano3k(im,jsta_2l:jend_2u,lm))
+
+        allocate(aolgaj(im,jsta_2l:jend_2u,lm))
+        allocate(aolgbj(im,jsta_2l:jend_2u,lm))
+
+        allocate(aomi(im,jsta_2l:jend_2u,lm))
+        allocate(aomj(im,jsta_2l:jend_2u,lm))
+
+        allocate(aorgcj(im,jsta_2l:jend_2u,lm))
+
+        allocate(aothri(im,jsta_2l:jend_2u,lm))
+        allocate(aothrj(im,jsta_2l:jend_2u,lm))
+
+        allocate(apah1j(im,jsta_2l:jend_2u,lm))
+        allocate(apah2j(im,jsta_2l:jend_2u,lm))
+        allocate(apah3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(apcsoj(im,jsta_2l:jend_2u,lm))
+
+        allocate(apomi(im,jsta_2l:jend_2u,lm))
+        allocate(apomj(im,jsta_2l:jend_2u,lm))
+
+        allocate(aseacat(im,jsta_2l:jend_2u,lm))
+        allocate(asij(im,jsta_2l:jend_2u,lm))
+
+        allocate(aso4i(im,jsta_2l:jend_2u,lm))
+        allocate(aso4j(im,jsta_2l:jend_2u,lm))
+        allocate(aso4k(im,jsta_2l:jend_2u,lm))
+        allocate(asoil(im,jsta_2l:jend_2u,lm))
+
+        allocate(asomi(im,jsta_2l:jend_2u,lm))
+        allocate(asomj(im,jsta_2l:jend_2u,lm))
+
+        allocate(asqtj(im,jsta_2l:jend_2u,lm))
+
+        allocate(asvoo1i(im,jsta_2l:jend_2u,lm))
+        allocate(asvoo1j(im,jsta_2l:jend_2u,lm))
+        allocate(asvoo2i(im,jsta_2l:jend_2u,lm))
+        allocate(asvoo2j(im,jsta_2l:jend_2u,lm))
+        allocate(asvoo3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(asvpo1i(im,jsta_2l:jend_2u,lm))
+        allocate(asvpo1j(im,jsta_2l:jend_2u,lm))
+        allocate(asvpo2i(im,jsta_2l:jend_2u,lm))
+        allocate(asvpo2j(im,jsta_2l:jend_2u,lm))
+        allocate(asvpo3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(atij(im,jsta_2l:jend_2u,lm))
+
+        allocate(atol1j(im,jsta_2l:jend_2u,lm))
+        allocate(atol2j(im,jsta_2l:jend_2u,lm))
+        allocate(atol3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(atoti(im,jsta_2l:jend_2u,lm))
+        allocate(atotj(im,jsta_2l:jend_2u,lm))
+        allocate(atotk(im,jsta_2l:jend_2u,lm))
+
+        allocate(atrp1j(im,jsta_2l:jend_2u,lm))
+        allocate(atrp2j(im,jsta_2l:jend_2u,lm))
+
+        allocate(axyl1j(im,jsta_2l:jend_2u,lm))
+        allocate(axyl2j(im,jsta_2l:jend_2u,lm))
+        allocate(axyl3j(im,jsta_2l:jend_2u,lm))
+
+        allocate(pm25ac(im,jsta_2l:jend_2u,lm))
+        allocate(pm25at(im,jsta_2l:jend_2u,lm))
+        allocate(pm25co(im,jsta_2l:jend_2u,lm))
+
+      endif
+
 !***********************************************************************
 !     START INIT HERE.
 !
@@ -205,6 +394,14 @@
       else
        if(me==0)print*,'ak5= ',ak5
       end if 
+      Status=nf90_get_att(ncid3d,nf90_global,'sf_surface_physi', &
+             iSF_SURFACE_PHYSICS)
+      if(Status/=0)then
+       print*,'sf_surface_physi not found; assigning to 2'
+       iSF_SURFACE_PHYSICS=2 !set LSM physics to 2 for NOAH
+      else
+       if(me==0)print*,'SF_SURFACE_PHYSICS= ',iSF_SURFACE_PHYSICS
+      endif
       Status=nf90_get_att(ncid3d,nf90_global,'idrt',idrt)
       if(Status/=0)then
        print*,'idrt not in netcdf file,reading grid'
@@ -472,12 +669,12 @@
       end if
       if(me==0)print*,'nhcas= ',nhcas
       if (nhcas == 0 ) then  !non-hydrostatic case
-       nrec=15
+       nrec=14
        allocate (recname(nrec))
        recname=[character(len=20) :: 'ugrd','vgrd','spfh','tmp','o3mr', &
                                      'presnh','dzdt', 'clwmr','dpres',  &
                                      'delz','icmr','rwmr',              &
-                                     'snmr','grle','cld_amt']
+                                     'snmr','grle']
       else
        nrec=8
        allocate (recname(nrec))
@@ -552,7 +749,7 @@
         lonlast  = nint(glon1d(im)*gdsdegr)
 
 ! Jili Dong add support for regular lat lon (2019/03/22) start
-       if (MAPTYPE .eq. 0) then
+       if (MAPTYPE == 0) then
         if(lonstart<0.)then
          lonstart=lonstart+360.*gdsdegr
         end if
@@ -587,7 +784,7 @@
         end if
 
 ! Jili Dong add support for regular lat lon (2019/03/22) start
-       if (MAPTYPE .eq. 0) then
+       if (MAPTYPE == 0) then
         if(lonstart<0.)then
          lonstart=lonstart+360.*gdsdegr
         end if
@@ -816,16 +1013,6 @@
        do j=jsta,jend
          do i=1,im
             cwm(i,j,l)=spval
-!           zint(i,j,l)=zint(i,j,l+1)+buf(i,j)
-!           if(abs(dpres(i,j,l))>1.0e5)print*,'bad dpres ',i,j,dpres(i,j,l)
-!make sure delz is positive
-           if(dpres(i,j,l)/=spval .and. t(i,j,l)/=spval .and. &
-           q(i,j,l)/=spval .and. buf3d(i,j,l)/=spval)then
-            pmid(i,j,l)=rgas*dpres(i,j,l)* &
-                t(i,j,l)*(q(i,j,l)*fv+1.0)/grav/abs(buf3d(i,j,l))
-           else
-            pmid(i,j,l)=spval
-           end if
 ! dong add missing value
            if (wh(i,j,l) < spval) then
             omga(i,j,l)=(-1.)*wh(i,j,l)*dpres(i,j,l)/abs(buf3d(i,j,l))
@@ -848,9 +1035,7 @@
        call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(14) &
        ,lm,qqg(1,jsta_2l,1))
-       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
-       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,recname(15) &
-       ,lm,cfr(1,jsta_2l,1))
+
 ! calculate CWM from FV3 output
        do l=1,lm
        do j=jsta,jend
@@ -858,12 +1043,586 @@
             cwm(i,j,l)=qqg(i,j,l)+qqs(i,j,l)+qqr(i,j,l)+qqi(i,j,l)+qqw(i,j,l)
          enddo
        enddo
-       if(debugprint)print*,'sample l,t,q,u,v,w,pmid= ',isa,jsa,l &
+       if(debugprint)print*,'sample l,t,q,u,v,w= ',isa,jsa,l &
        ,t(isa,jsa,l),q(isa,jsa,l),uh(isa,jsa,l),vh(isa,jsa,l) &
-       ,wh(isa,jsa,l),pmid(isa,jsa,l)
+       ,wh(isa,jsa,l)
        if(debugprint)print*,'sample l cwm for FV3',l, &
           cwm(isa,jsa,l)
       end do 
+
+!=============================
+! For AQF Chemical species
+!=============================
+
+      if (aqfcmaq_on) then
+
+       ! *********** VarName need to be in lower case ************
+       ! === It will cause problem if not use the lower case =====
+       ! *********************************************************
+
+       !--------------------------------------------------------------
+       !-- rename input o3 to NCO grib2 name ozcon -------------------
+
+       VarName='o3'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ozcon(1,jsta_2l,1))
+
+       !--------------------------------------------------------------
+
+       VarName='aacd'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aacd(1,jsta_2l,1))
+
+       VarName='aalj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aalj(1,jsta_2l,1))
+
+       VarName='aalk1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aalk1j(1,jsta_2l,1))
+
+       VarName='aalk2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aalk2j(1,jsta_2l,1))
+
+       VarName='abnz1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,abnz1j(1,jsta_2l,1))
+
+       VarName='abnz2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,abnz2j(1,jsta_2l,1))
+
+       VarName='abnz3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,abnz3j(1,jsta_2l,1))
+
+       VarName='acaj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acaj(1,jsta_2l,1))
+
+       VarName='acet'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acet(1,jsta_2l,1))
+
+       VarName='acli'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acli(1,jsta_2l,1))
+
+       VarName='aclj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aclj(1,jsta_2l,1))
+
+       VarName='aclk'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aclk(1,jsta_2l,1))
+
+       VarName='acors'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acors(1,jsta_2l,1))
+
+       VarName='acro_primary'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acro_primary(1,jsta_2l,1))
+
+       VarName='acrolein'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,acrolein(1,jsta_2l,1))
+
+       VarName='aeci'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aeci(1,jsta_2l,1))
+
+       VarName='aecj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aecj(1,jsta_2l,1))
+
+       VarName='afej'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,afej(1,jsta_2l,1))
+
+       VarName='aglyj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aglyj(1,jsta_2l,1))
+
+       VarName='ah2oi'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah2oi(1,jsta_2l,1))
+
+       VarName='ah2oj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah2oj(1,jsta_2l,1))
+
+       VarName='ah2ok'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah2ok(1,jsta_2l,1))
+
+       VarName='ah3opi'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah3opi(1,jsta_2l,1))
+
+       VarName='ah3opj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah3opj(1,jsta_2l,1))
+
+       VarName='ah3opk'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ah3opk(1,jsta_2l,1))
+
+       VarName='aiso1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aiso1j(1,jsta_2l,1))
+
+       VarName='aiso2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aiso2j(1,jsta_2l,1))
+
+       VarName='aiso3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aiso3j(1,jsta_2l,1))
+
+       VarName='aivpo1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aivpo1j(1,jsta_2l,1))
+
+       VarName='akj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,akj(1,jsta_2l,1))
+
+       VarName='ald2'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ald2(1,jsta_2l,1))
+
+       VarName='ald2_primary'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ald2_primary(1,jsta_2l,1))
+
+       VarName='aldx'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aldx(1,jsta_2l,1))
+
+       VarName='alvoo1i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvoo1i(1,jsta_2l,1))
+
+       VarName='alvoo1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvoo1j(1,jsta_2l,1))
+
+       VarName='alvoo2i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvoo2i(1,jsta_2l,1))
+
+       VarName='alvoo2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvoo2j(1,jsta_2l,1))
+
+       VarName='alvpo1i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvpo1i(1,jsta_2l,1))
+
+       VarName='alvpo1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,alvpo1j(1,jsta_2l,1))
+
+       VarName='amgj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,amgj(1,jsta_2l,1))
+
+       VarName='amnj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,amnj(1,jsta_2l,1))
+
+       VarName='anai'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,anai(1,jsta_2l,1))
+
+       VarName='anaj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,anaj(1,jsta_2l,1))
+
+       VarName='anh4i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,anh4i(1,jsta_2l,1))
+
+       VarName='anh4j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,anh4j(1,jsta_2l,1))
+
+       VarName='anh4k'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,anh4k(1,jsta_2l,1))
+
+       VarName='ano3i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ano3i(1,jsta_2l,1))
+
+       VarName='ano3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ano3j(1,jsta_2l,1))
+
+       VarName='ano3k'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,ano3k(1,jsta_2l,1))
+
+       VarName='aolgaj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aolgaj(1,jsta_2l,1))
+
+       VarName='aolgbj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aolgbj(1,jsta_2l,1))
+
+       VarName='aorgcj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aorgcj(1,jsta_2l,1))
+
+       VarName='aothri'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aothri(1,jsta_2l,1))
+
+       VarName='aothrj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aothrj(1,jsta_2l,1))
+
+       VarName='apah1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,apah1j(1,jsta_2l,1))
+
+       VarName='apah2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,apah2j(1,jsta_2l,1))
+
+       VarName='apah3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,apah3j(1,jsta_2l,1))
+
+       VarName='apcsoj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,apcsoj(1,jsta_2l,1))
+
+       VarName='aseacat'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aseacat(1,jsta_2l,1))
+
+       VarName='asij'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asij(1,jsta_2l,1))
+
+       VarName='aso4i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aso4i(1,jsta_2l,1))
+
+       VarName='aso4j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aso4j(1,jsta_2l,1))
+
+       VarName='aso4k'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,aso4k(1,jsta_2l,1))
+
+       VarName='asoil'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asoil(1,jsta_2l,1))
+
+       VarName='asqtj'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asqtj(1,jsta_2l,1))
+
+       VarName='asvoo1i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvoo1i(1,jsta_2l,1))
+
+       VarName='asvoo1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvoo1j(1,jsta_2l,1))
+
+       VarName='asvoo2i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvoo2i(1,jsta_2l,1))
+
+       VarName='asvoo2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvoo2j(1,jsta_2l,1))
+
+       VarName='asvoo3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvoo3j(1,jsta_2l,1))
+
+       VarName='asvpo1i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvpo1i(1,jsta_2l,1))
+
+       VarName='asvpo1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvpo1j(1,jsta_2l,1))
+
+       VarName='asvpo2i'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvpo2i(1,jsta_2l,1))
+
+       VarName='asvpo2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvpo2j(1,jsta_2l,1))
+
+       VarName='asvpo3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,asvpo3j(1,jsta_2l,1))
+
+       VarName='atij'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atij(1,jsta_2l,1))
+
+       VarName='atol1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atol1j(1,jsta_2l,1))
+
+       VarName='atol2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atol2j(1,jsta_2l,1))
+
+       VarName='atol3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atol3j(1,jsta_2l,1))
+
+       VarName='atrp1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atrp1j(1,jsta_2l,1))
+
+       VarName='atrp2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,atrp2j(1,jsta_2l,1))
+
+       VarName='axyl1j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,axyl1j(1,jsta_2l,1))
+
+       VarName='axyl2j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,axyl2j(1,jsta_2l,1))
+
+       VarName='axyl3j'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,axyl3j(1,jsta_2l,1))
+
+       VarName='pm25ac'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,pm25ac(1,jsta_2l,1))
+
+       VarName='pm25at'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,pm25at(1,jsta_2l,1))
+
+       VarName='pm25co'
+       call read_netcdf_3d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+       ,lm,pm25co(1,jsta_2l,1))
+
+!=========================
+! PM2.5 SPECIES
+!=========================
+
+    !   do l=1,lm
+    !   do j=jsta,jend
+    !     do i=1,im
+    !        pm25hp(i,j,l) = ( ah3opi(i,j,l)*pm25at(i,j,l)            &
+    !                        + ah3opj(i,j,l)*pm25ac(i,j,l)            &
+    !                        + ah3opk(i,j,l)*pm25co(i,j,l) ) / 19.0
+
+    !        pm25cl(i,j,l) =   acli(i,j,l)*pm25at(i,j,l)              &
+    !                        + aclj(i,j,l)*pm25ac(i,j,l)              &
+    !                        + aclk(i,j,l)*pm25co(i,j,l)
+
+    !        pm25ec(i,j,l) =   aeci(i,j,l)*pm25at(i,j,l)              &
+    !                        + aecj(i,j,l)*pm25ac(i,j,l)
+    !     enddo
+    !   enddo
+    !   enddo
+
+
+    !   do l=1,lm
+    !   do j=jsta,jend
+    !     do i=1,im
+
+    !        anak(i,j,l) =  0.8373 * aseacat(i,j,l)                   &
+    !                     + 0.0626 *   asoil(i,j,l)                   &
+    !                     + 0.0023 *   acors(i,j,l)
+
+    !        pm25na(i,j,l) =   anai(i,j,l)*pm25at(i,j,l)              &
+    !                        + anaj(i,j,l)*pm25ac(i,j,l)              &
+    !                        + anak(i,j,l)*pm25co(i,j,l)
+    !     enddo
+    !   enddo
+    !   enddo
+
+       do l=1,lm
+       do j=jsta,jend
+         do i=1,im
+
+            apomi(i,j,l) = alvpo1i(i,j,l)                                   &
+                          +asvpo1i(i,j,l) + asvpo2i(i,j,l)
+
+            apomj(i,j,l) = alvpo1j(i,j,l)                                   &
+                          +asvpo1j(i,j,l) + asvpo2j(i,j,l) + asvpo3j(i,j,l) &
+                          +aivpo1j(i,j,l)
+
+            asomi(i,j,l) = alvoo1i(i,j,l) + alvoo2i(i,j,l)                  &
+                          +asvoo1i(i,j,l) + asvoo2i(i,j,l)
+
+            asomj(i,j,l) = axyl1j(i,j,l)  + axyl2j(i,j,l)  + axyl3j(i,j,l)  &
+                          +atol1j(i,j,l)  + atol2j(i,j,l)  + atol3j(i,j,l)  &
+                          +abnz1j(i,j,l)  + abnz2j(i,j,l)  + abnz3j(i,j,l)  &
+                          +aiso1j(i,j,l)  + aiso2j(i,j,l)  + aiso3j(i,j,l)  &
+                          +atrp1j(i,j,l)  + atrp2j(i,j,l)  +  asqtj(i,j,l)  &
+                          +aalk1j(i,j,l)  + aalk2j(i,j,l)                   &
+                          +apah1j(i,j,l)  + apah2j(i,j,l)  + apah3j(i,j,l)  &
+                          +aorgcj(i,j,l)  + aolgbj(i,j,l)  + aolgaj(i,j,l)  &
+                          +alvoo1j(i,j,l) + alvoo2j(i,j,l)                  &
+                          +asvoo1j(i,j,l) + asvoo2j(i,j,l) + asvoo3j(i,j,l) &
+                          +apcsoj(i,j,l)
+
+            aomi(i,j,l) = apomi(i,j,l) + asomi(i,j,l)
+            aomj(i,j,l) = apomj(i,j,l) + asomj(i,j,l)
+
+            atoti(i,j,l) = aso4i(i,j,l) + ano3i(i,j,l) + anh4i(i,j,l)  &
+                          + anai(i,j,l) +  acli(i,j,l) +  aeci(i,j,l)  &
+                          + aomi(i,j,l) +aothri(i,j,l)
+
+            atotj(i,j,l) = aso4j(i,j,l) + ano3j(i,j,l) + anh4j(i,j,l)  &
+                          + anaj(i,j,l) +  aclj(i,j,l) +  aecj(i,j,l)  &
+                          + aomj(i,j,l) +aothrj(i,j,l)                 &
+                          + afej(i,j,l) +  asij(i,j,l) +  atij(i,j,l)  &
+                          + acaj(i,j,l) +  amgj(i,j,l) +  amnj(i,j,l)  &
+                          + aalj(i,j,l) +   akj(i,j,l)
+
+            atotk(i,j,l) = asoil(i,j,l) + acors(i,j,l) + aseacat(i,j,l)&
+                          + aclk(i,j,l)                                &
+                          +aso4k(i,j,l) + ano3k(i,j,l) + anh4k(i,j,l)
+
+            pmtf(i,j,l) =  atoti(i,j,l)*pm25at(i,j,l)                  &
+                          + atotj(i,j,l)*pm25ac(i,j,l)                 &
+                          + atotk(i,j,l)*pm25co(i,j,l)
+         enddo
+       enddo
+       enddo
+
+       deallocate (aacd, aalj, aalk1j, aalk2j, abnz1j, abnz2j, abnz3j)
+       deallocate (acaj, acet, acli, aclj, aclk)
+       deallocate (acors, acro_primary, acrolein)
+
+       deallocate (aeci, aecj, afej, aglyj, ah2oi, ah2oj, ah2ok)
+       deallocate (ah3opi, ah3opj, ah3opk, aiso1j, aiso2j, aiso3j)
+
+       deallocate (aivpo1j, akj, ald2, ald2_primary, aldx)
+       deallocate (alvoo1i, alvoo1j, alvoo2i, alvoo2j, alvpo1i, alvpo1j)
+
+       deallocate (amgj, amnj, anai, anaj, anak)
+       deallocate (anh4i, anh4j, anh4k, ano3i, ano3j, ano3k)
+
+       deallocate (aolgaj, aolgbj, aomi, aomj)
+       deallocate (aorgcj, aothri, aothrj, apah1j, apah2j, apah3j)
+
+       deallocate (apcsoj, apomi, apomj, aseacat, asij)
+       deallocate (aso4i, aso4j, aso4k, asoil, asomi, asomj, asqtj)
+
+       deallocate (asvoo1i, asvoo1j, asvoo2i, asvoo2j, asvoo3j)
+       deallocate (asvpo1i, asvpo1j, asvpo2i, asvpo2j, asvpo3j)
+
+       deallocate (atij, atol1j, atol2j, atol3j, atrp1j, atrp2j)
+       deallocate (atoti, atotj, atotk, axyl1j, axyl2j, axyl3j)
+
+       deallocate (pm25ac, pm25at, pm25co)
+
+      endif     ! -- aqfcmaq_on
+!============================
+
 ! max hourly updraft velocity
       VarName='upvvelmax'
       call read_netcdf_2d_scatter(me,ncid3d,1,im,jm,jsta,jsta_2l &
@@ -935,25 +1694,29 @@
       do l=2,lp1
         do j=jsta,jend
           do i=1,im
-            pint(i,j,l)   = pint(i,j,l-1) + dpres(i,j,l-1)
+            if (dpres(i,j,l-1)<spval .and. pint(i,j,l-1)<spval) then
+              pint(i,j,l)= pint(i,j,l-1) + dpres(i,j,l-1)
+            else
+              pint(i,j,l)=spval
+            endif
           enddo
         enddo
-        if (me == 0) print*,'sample model pint,pmid' ,ii,jj,l &
-          ,pint(ii,jj,l),pmid(ii,jj,l)
+!        if (me == 0) print*,'sample model pint,pmid' ,ii,jj,l &
+!          ,pint(ii,jj,l),pmid(ii,jj,l)
       end do
 
-!      do l=lm,1,-1
-!        do j=jsta,jend
-!          do i=1,im
-!           if(pint(i,j,l+1)/=spval .and. dpres(i,j,l)/=spval)then
-!            pint(i,j,l)=pint(i,j,l+1)-dpres(i,j,l)
-!           else
-!            pint(i,j,l)=spval
-!           end if
-!          end do
-!        end do
-!        print*,'sample pint= ',isa,jsa,l,pint(isa,jsa,l)
-!      end do
+!compute pmid from averaged two layer pint
+      do l=lm,1,-1
+        do j=jsta,jend
+          do i=1,im
+            if (pint(i,j,l)<spval .and. pint(i,j,l+1)<spval) then
+              pmid(i,j,l)=0.5*(pint(i,j,l)+pint(i,j,l+1))
+            else
+              pmid(i,j,l)=spval
+            endif
+          enddo
+        enddo
+      enddo
 
 ! surface height from FV3 
 ! dong set missing value for zint
@@ -985,7 +1748,7 @@
             end if
           end do
         end do
-        print*,'sample zint= ',isa,jsa,l,zint(isa,jsa,l)
+        if(debugprint)print*,'sample zint= ',isa,jsa,l,zint(isa,jsa,l)
       end do
 
       do l=lp1,1,-1
@@ -1015,18 +1778,6 @@
       
       pt    = ak5(1) 
 
-!      else
-!        do l=2,lm
-!!$omp parallel do private(i,j)
-!          do j=jsta,jend
-!            do i=1,im
-!              pint(i,j,l)   = pint(i,j,l-1) + dpres(i,j,l-1)
-!            enddo
-!          enddo
-!        if (me == 0) print*,'sample pint,pmid' ,ii,jj,l,pint(ii,jj,l),pmid(ii,jj,l)
-!        end do
-!      endif
-!
 
       deallocate (vcoord4)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1089,36 +1840,6 @@
         CALL MICROINIT(imp_physics)
       end if
 
-! Chuang: zhour is when GFS empties bucket last so using this
-! to compute buket will result in changing bucket with forecast time.
-! set default bucket for now
-
-!     call nemsio_getheadvar(ffile,'zhour',zhour,iret=iret)
-!     if(iret == 0) then
-!        tprec   = 1.0*ifhr-zhour
-!        tclod   = tprec
-!        trdlw   = tprec
-!        trdsw   = tprec
-!        tsrfc   = tprec
-!        tmaxmin = tprec
-!        td3d    = tprec
-!        print*,'tprec from flux file header= ',tprec
-!     else
-!        print*,'Error reading accumulation bucket from flux file', &
-!            'header - will try to read from env variable FHZER'
-!        CALL GETENV('FHZER',ENVAR)
-!        read(ENVAR, '(I2)')idum
-!        tprec   = idum*1.0
-!        tclod   = tprec
-!        trdlw   = tprec
-!        trdsw   = tprec
-!        tsrfc   = tprec
-!        tmaxmin = tprec
-!        td3d    = tprec
-!        print*,'TPREC from FHZER= ',tprec
-!     end if
-
-
         tprec   = float(fhzero)
         if(ifhr>240)tprec=12.
         tclod   = tprec
@@ -1130,130 +1851,15 @@
         print*,'tprec = ',tprec
 
 
-! start reading 2d netcdf file
-! surface pressure
-!      VarName='pressfc'
-!      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
-!       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
-!       ,pint(1,jsta_2l,lp1))
-!      if(debugprint)print*,'sample ',VarName,' =',pint(isa,jsa,lp1)
-!      do l=lm,1,-1
-!        do j=jsta,jend
-!          do i=1,im
-!            pint(i,j,l)=pint(i,j,l+1)-dpres(i,j,l)
-!            if(pint(i,j,l)>1.0E6)print*,'bad P ',i,j,l,pint(i,j,l) &
-!            ,pint(i,j,l+1),dpres(i,j,l)
-!          end do
-!        end do
-!        print*,'sample pint= ',isa,jsa,l,pint(isa,jsa,l)
-!      end do
-! surface height from FV3 already multiplied by G
-!      VarName='orog'
-!      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
-!       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,fis)
-!      if(debugprint)print*,'sample ',VarName,' =',fis(isa,jsa)
-!      do j=jsta,jend
-!        do i=1,im
-!          if (fis(i,j) /= spval) then
-!            zint(i,j,lp1) = fis(i,j)
-!            fis(i,j)      = fis(i,j) * grav
-!          else
-!            zint(i,j,lp1) = spval
-!            fis(i,j)      = spval
-!          endif
-!        enddo
+! instantaneous 3D cloud fraction
+      VarName='cldfra'
+!      do l=1,lm
+        call read_netcdf_3d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
+        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName &
+        ,lm,cfr(1,jsta_2l,1))
+!       if(debugprint)print*,'sample ',VarName,'isa,jsa,l =' &
+!          ,cfr(isa,jsa,l),isa,jsa,l
 !      enddo
-      
-!      do l=lm,1,-1
-!        do j=jsta,jend
-!          do i=1,im
-!            if(zint(i,j,l+1)/=spval .and. buf3d(i,j,l)/=spval)then
-!             zint(i,j,l)=zint(i,j,l+1)+buf3d(i,j,l)
-!             if(zint(i,j,l)>1.0E6)print*,'bad H ',i,j,l,zint(i,j,l)
-!            else
-!             zint(i,j,l)=spval
-!            end if
-!          end do
-!        end do
-!        print*,'sample zint= ',isa,jsa,l,zint(isa,jsa,l)
-!      end do
-
-! Per communication with Fanglin, P from model in not monotonic
-! so compute P using ak and bk for now Sep. 2017
-!        do l=lm,1,-1
-!!!$omp parallel do private(i,j)
-!          do j=jsta,jend
-!            do i=1,im
-!              pint(i,j,l) = ak5(lm+2-l) + bk5(lm+2-l)*pint(i,j,lp1)
-!              pmid(i,j,l) = 0.5*(pint(i,j,l)+pint(i,j,l+1))  ! for now -
-!            enddo
-!          enddo
-!          print*,'sample pint,pmid' &
-!          ,l,pint(isa,jsa,l),pmid(isa,jsa,l)
-!        enddo
-
-!      allocate(wrk1(im,jsta:jend),wrk2(im,jsta:jend))
-!      do j=jsta,jend
-!        do i=1,im
-!          pd(i,j)         = spval           ! GFS does not output PD
-!          pint(i,j,1)     = PT
-!          alpint(i,j,lp1) = log(pint(i,j,lp1))
-!          wrk1(i,j)       = log(PMID(I,J,LM))
-!          wrk2(i,j)       = T(I,J,LM)*(Q(I,J,LM)*fv+1.0)
-!          FI(I,J,1)       = FIS(I,J)                      &
-!                          + wrk2(i,j)*rgas*(ALPINT(I,J,Lp1)-wrk1(i,j))
-!          ZMID(I,J,LM)    = FI(I,J,1) * gravi
-!        end do
-!      end do
-
-! SECOND, INTEGRATE HEIGHT HYDROSTATICLY, GFS integrate height on
-! mid-layer
-
-!      DO L=LM,2,-1  ! omit computing model top height 
-!        ll = l - 1
-!        do j = jsta, jend
-!          do i = 1, im
-!            alpint(i,j,l) = log(pint(i,j,l))
-!            tvll          = T(I,J,LL)*(Q(I,J,LL)*fv+1.0)
-!            pmll          = log(PMID(I,J,LL))
-
-!            FI(I,J,2)     = FI(I,J,1) + (0.5*rgas)*(wrk2(i,j)+tvll)   &
-!                                      * (wrk1(i,j)-pmll)
-!            ZMID(I,J,LL)  = FI(I,J,2) * gravi
-!
-!            FACT          = (ALPINT(I,J,L)-wrk1(i,j)) / (pmll-wrk1(i,j))
-!            ZINT(I,J,L)   = ZMID(I,J,L) +(ZMID(I,J,LL)-ZMID(I,J,L))*FACT
-!            FI(I,J,1)     = FI(I,J,2)
-!            wrk1(i,J)     = pmll
-!            wrk2(i,j)     = tvll
-!          ENDDO
-!        ENDDO
-
-!        print*,'L ZINT= ',l,zint(isa,jsa,l),ZMID(isa,jsa,l)         
-!        ,'alpint=',ALPINT(ii,jj,l),'pmid=',LOG(PMID(Ii,Jj,L)),  &
-!        'pmid(l-1)=',LOG(PMID(Ii,Jj,L-1)),'zmd=',ZMID(Ii,Jj,L), &
-!        'zmid(l-1)=',ZMID(Ii,Jj,L-1)
-!      ENDDO
-!      deallocate(wrk1,wrk2)
-
-!      do l=lp1,2,-1
-!        do j=jsta,jend
-!          do i=1,im
-!            alpint(i,j,l)=log(pint(i,j,l))
-!          end do
-!        end do
-!      end do
-
-!      do l=lm,2,-1
-!        do j=jsta,jend
-!          do i=1,im
-!            zmid(i,j,l)=zint(i,j,l+1)+(zint(i,j,l)-zint(i,j,l+1))* &
-!                    (log(pmid(i,j,l))-alpint(i,j,l+1))/ &
-!                    (alpint(i,j,l)-alpint(i,j,l+1))
-!            if(zmid(i,j,l)>1.0E6)print*,'bad Hmid ',i,j,l,zmid(i,j,l)
-!          end do
-!        end do
-!      end do
 
       VarName='refl_10cm'
 !      do l=1,lm
@@ -1356,7 +1962,7 @@
           twbs(i,j)  = SPVAL ! GFS does not have inst sensible heat flux
           qwbs(i,j)  = SPVAL ! GFS does not have inst latent heat flux
 !assign sst
-          if (sm(i,j) /= 0.0) then
+          if (sm(i,j) /= 0.0 .and. ths(i,j) < spval ) then
             if (sice(i,j) >= 0.15) then
               sst(i,j) = 271.4
             else
@@ -1462,6 +2068,11 @@
 
 ! GFS does not have accumulated total, gridscale, and convective precip, will use inst precip to derive in SURFCE.f
 
+! max hourly surface precipitation rate
+      VarName='pratemax'
+      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,prate_max)
+     if(debugprint)print*,'sample ',VarName,' = ',prate_max(isa,jsa)
 ! max hourly 1-km agl reflectivity
       VarName='refdmax'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
@@ -1599,14 +2210,16 @@
       enddo
 
 ! maximum snow albedo in fraction using nemsio
-      VarName='mxsalb'
+      VarName='snoalb'
+      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,mxsnal)
 !     where(mxsnal /= spval)mxsnal=mxsnal/100. ! convert to fraction
-!$omp parallel do private(i,j)
-      do j=jsta,jend
-        do i=1,im
-          if (mxsnal(i,j) /= spval) mxsnal(i,j) = mxsnal(i,j) * 0.01
-        enddo
-      enddo
+!!$omp parallel do private(i,j)
+!      do j=jsta,jend
+!        do i=1,im
+!          if (mxsnal(i,j) /= spval) mxsnal(i,j) = mxsnal(i,j) * 0.01
+!        enddo
+!      enddo
 !     if(debugprint)print*,'sample ',VarName,' = ',mxsnal(isa,jsa)
      
 ! GFS probably does not use sigt4, set it to sig*t^4
@@ -1985,10 +2598,20 @@
        call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,rswin)
 
+! time averaged model top incoming shortwave
+      VarName='dswrf_avetoa'
+      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
+       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,aswintoa)
+!     if(debugprint)print*,'sample l',VarName,' = ',1,aswintoa(isa,jsa)
+
 ! inst incoming clear sky sfc shortwave
-      VarName='csdlf'
-       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
-       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,rswinc)
+! FV3 do not output instant incoming clear sky sfc shortwave
+      !$omp parallel do private(i,j)
+      do j=jsta_2l,jend_2u
+        do i=1,im
+          rswinc(i,j) = spval 
+        enddo
+      enddo
 
 ! time averaged incoming sfc uv-b using getgb
       VarName='duvb_ave'
@@ -2019,12 +2642,6 @@
       VarName='uswrf'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,rswout)
-
-! time averaged model top incoming shortwave
-      VarName='dswrf_avetoa'
-      call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
-       ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,aswintoa)
-!     if(debugprint)print*,'sample l',VarName,' = ',1,aswintoa(isa,jsa)      
 
 ! time averaged model top outgoing shortwave
       VarName='uswrf_avetoa'
@@ -2086,6 +2703,34 @@
         enddo
       enddo
 
+      if(me==0)print*,'rdaod= ',rdaod
+! inst aod550 optical depth
+      if(rdaod) then
+      VarName='aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,aod550)
+
+      VarName='du_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,du_aod550)
+
+      VarName='ss_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ss_aod550)
+
+      VarName='su_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,su_aod550)
+
+      VarName='oc_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,oc_aod550)
+
+      VarName='bc_aod550'
+      call read_netcdf_2d_scatter(ncid2d,im,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,bc_aod550)
+      end if
+
 ! time averaged ground heat flux using nemsio
       VarName='gflux_ave'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
@@ -2128,13 +2773,13 @@
       VarName='uflx'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,sfcuxi)
-!     if(debugprint)print*,'sample l',VarName,' = ',1,sfcuxi(isa,jsa)
+     if(debugprint)print*,'sample l',VarName,' = ',1,sfcuxi(isa,jsa)
 
 ! inst meridional momentum flux using nemsio
       VarName='vflx'
       call read_netcdf_2d_scatter(me,ncid2d,1,im,jm,jsta,jsta_2l &
        ,jend_2u,MPI_COMM_COMP,icnt,idsp,spval,VarName,sfcvxi)
-!     if(debugprint)print*,'sample l',VarName,' = ',1,sfcvxi(isa,jsa)
+     if(debugprint)print*,'sample l',VarName,' = ',1,sfcvxi(isa,jsa)
 
      
 !$omp parallel do private(i,j)
@@ -2830,12 +3475,6 @@
 
       if(me == 0) then
         iret = nf90_inq_varid(ncid,trim(varname),varid)
-        iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
-        if (iret /= 0) fill_value = spval_netcdf
-        !print*,stat,varname,varid
-        iret = nf90_get_var(ncid,varid,dummy2)
-!        iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,l,ifhr/), &
-!             count=(/im,jm,1,1/))
         if (iret /= 0) then
           print*,VarName," not found -Assigned missing values"
           do l=1,lm
@@ -2847,6 +3486,9 @@
           end do
           end do
         else
+          iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
+          if (iret /= 0) fill_value = spval_netcdf
+          iret = nf90_get_var(ncid,varid,dummy2)
           do l=1,lm
 !$omp parallel do private(i,j,jj)
           do j=1,jm
@@ -2890,12 +3532,6 @@
 
       if(me == 0) then
         iret = nf90_inq_varid(ncid,trim(varname),varid)
-        iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
-        if (iret /= 0) fill_value = spval_netcdf
-        !print*,stat,varname,varid
-        iret = nf90_get_var(ncid,varid,dummy2)
-        !iret = nf90_get_var(ncid,varid,dummy2,start=(/1,1,ifhr/), &
-        !     count=(/im,jm,1/))
         if (iret /= 0) then
           print*,VarName, " not found -Assigned missing values"
 !$omp parallel do private(i,j)
@@ -2905,6 +3541,9 @@
             end do
           end do
         else
+          iret = nf90_get_att(ncid,varid,"_FillValue",fill_value)
+          if (iret /= 0) fill_value = spval_netcdf
+          iret = nf90_get_var(ncid,varid,dummy2)
 !$omp parallel do private(i,j,jj)
           do j=1,jm
 !            jj=jm-j+1

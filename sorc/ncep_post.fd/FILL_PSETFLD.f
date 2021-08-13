@@ -1,41 +1,42 @@
+!> @file
+!                .      .    .     
+!> SUBPROGRAM:    READCNTRLgrb2_xml  READS POST xml CONTROL FILE
+!!   PRGRMMR: J. WANG         ORG: NCEP/EMC   DATE: 12-01-27       
+!!     
+!! ABSTRACT:
+!!     THIS ROUTINE SET THE OUTPUT FIELD GRIB2 INFORMATION SUCH    
+!!     AS PARAMETER NAME, LEVEL TYPE ETC FROM POST AVAILABLE FIELD
+!!     TABLE
+!!     
+!! PROGRAM HISTORY LOG:
+!!   01_27_2012  Jun Wang - INITIAL CODE
+!!   04_03_2012  Jun Wang - Add table info
+!!   03_10_2015  Lin Gan  - Using flat file data
+!!     
+!! USAGE:    CALL READCNTRL_XML(kth,kpv,pv)
+!!   INPUT ARGUMENT LIST:
+!!     param_ofld: output field
+!!     param_afld: available field in POST
+!!
+!!   OUTPUT ARGUMENT LIST: 
+!!     param_ofld: output field
+!!     
+!!   OUTPUT FILES:
+!!     NONE
+!!     
+!!   SUBPROGRAMS CALLED:
+!!     UTILITIES:
+!!
+!!     LIBRARY:
+!!       MODULE:   - xml_data_post_t
+!!     
+!!   ATTRIBUTES:
+!!     LANGUAGE: FORTRAN
+!!     MACHINE : IBM      
+!!
       subroutine fill_psetfld(param_ofld,param_afld)
 !
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
-! SUBPROGRAM:    READCNTRLgrb2_xml  READS POST xml CONTROL FILE
-!   PRGRMMR: J. WANG         ORG: NCEP/EMC   DATE: 12-01-27       
-!     
-! ABSTRACT:
-!     THIS ROUTINE SET THE OUTPUT FIELD GRIB2 INFORMATION SUCH    
-!     AS PARAMETER NAME, LEVEL TYPE ETC FROM POST AVAILABLE FIELD
-!     TABLE
-!     
-! PROGRAM HISTORY LOG:
-!   01_27_2012  Jun Wang - INITIAL CODE
-!   04_03_2012  Jun Wang - Add table info
-!   03_10_2015  Lin Gan  - Using flat file data
-!     
-! USAGE:    CALL READCNTRL_XML(kth,kpv,pv)
-!   INPUT ARGUMENT LIST:
-!     param_ofld: output field
-!     param_afld: available field in POST
-!
-!   OUTPUT ARGUMENT LIST: 
-!     param_ofld: output field
-!     
-!   OUTPUT FILES:
-!     NONE
-!     
-!   SUBPROGRAMS CALLED:
-!     UTILITIES:
-!
-!     LIBRARY:
-!       MODULE:   - xml_data_post_t
-!     
-!   ATTRIBUTES:
-!     LANGUAGE: FORTRAN
-!     MACHINE : IBM      
-!$$$  
+
 !
 !     
 !     INCLUDE ETA GRID DIMENSIONS.  SET/DERIVE PARAMETERS.
@@ -79,7 +80,7 @@
       endif
 ! scale_fact_fixed_sfc1
       if(size(param_ofld%scale_fact_fixed_sfc1)==0.and.size(param_afld%scale_fact_fixed_sfc1)/=0) then
-        print *,'scale_fact,fld=',trim(param_ofld%shortname),size(param_afld%scale_fact_fixed_sfc1)
+!        print *,'scale_fact,fld=',trim(param_ofld%shortname),size(param_afld%scale_fact_fixed_sfc1)
          nullify(param_ofld%scale_fact_fixed_sfc1)
          allocate(param_ofld%scale_fact_fixed_sfc1(1))
          param_ofld%scale_fact_fixed_sfc1(1)=param_afld%scale_fact_fixed_sfc1(1)

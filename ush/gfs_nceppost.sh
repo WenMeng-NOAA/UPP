@@ -345,6 +345,7 @@ export CTL=`basename $CTLFILE`
 ln -sf griddef.out fort.110
 cp ${PARMpost}/nam_micro_lookup.dat ./eta_micro_lookup.dat
 
+echo "gfs_nceppost.sh OMP_NUM_THREADS= $OMP_NUM_THREADS"
 ${APRUN:-mpirun.lsf} $POSTGPEXEC < itag > outpost_gfs_${VDATE}_${CTL}
 
 export ERR=$?
@@ -379,6 +380,7 @@ if [ $GRIBVERSION = grib2 ]; then
 #cat $PGBOUT prmsl h5wav >> $PGBOUT
 #wm
 #  cat  prmsl h5wav >> $PGBOUT
+[[ -f prmsl ]] && rm prmsl ; [[ -f h5wav ]] && rm h5wav ; [[ -f tfile ]] && rm tfile  
 
 fi
 
