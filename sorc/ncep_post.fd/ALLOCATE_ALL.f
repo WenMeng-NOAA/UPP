@@ -18,6 +18,7 @@
 !! -  21-04-06  Wen Meng - Initializing all allocated arrays
 !! -  21-04-16  Wen Meng - Initializing aextc55 and extc55 as 0. These
 !!                      two arrays are involved in GSL visibility computation.
+!! -  22-03-22  Wen Meng - Initializing pwat.
 !!
 !!   OUTPUT FILES:
 !!   - STDOUT  - RUN TIME STANDARD OUT.
@@ -46,7 +47,7 @@
       integer ierr,jsx,jex
       integer i,j,l,k
 ! Allocate arrays
-      allocate(u(im,jsta_2l:jend_2u,lm))
+      allocate(u(im+1,jsta_2l:jend_2u,lm))
       allocate(v(im,jsta_2l:jvend_2u,lm))
       allocate(t(im,jsta_2l:jend_2u,lm))
 ! CHUANG ADD POTENTIAL TEMP BECAUSE WRF OUTPUT THETA
@@ -79,9 +80,23 @@
 !$omp parallel do private(i,j,l)
       do l=1,lm
         do j=jsta_2l,jend_2u
-          do i=1,im
+          do i=1,im+1
             u(i,j,l)=0.
+          enddo
+        enddo
+      enddo
+!$omp parallel do private(i,j,l)
+      do l=1,lm
+        do j=jsta_2l,jvend_2u
+          do i=1,im
             v(i,j,l)=0.
+          enddo
+        enddo
+      enddo
+!$omp parallel do private(i,j,l)
+      do l=1,lm
+        do j=jsta_2l,jend_2u
+          do i=1,im
             t(i,j,l)=spval
             q(i,j,l)=spval
             uh(i,j,l)=spval
@@ -669,6 +684,7 @@
       allocate(z500(im,jsta_2l:jend_2u))
       allocate(z700(im,jsta_2l:jend_2u))
       allocate(teql(im,jsta_2l:jend_2u))
+      allocate(ieql(im,jsta_2l:jend_2u))
       allocate(cfracl(im,jsta_2l:jend_2u))
       allocate(cfracm(im,jsta_2l:jend_2u))
       allocate(cfrach(im,jsta_2l:jend_2u))
@@ -694,6 +710,7 @@
           t700(i,j)=spval
           z700(i,j)=spval
           teql(i,j)=spval
+          ieql(i,j)=0
           cfracl(i,j)=spval
           cfracm(i,j)=spval
           cfrach(i,j)=spval
@@ -810,14 +827,14 @@
           cldfra(i,j)=spval
           cprate(i,j)=spval
           cnvcfr(i,j)=spval
-          ivgtyp(i,j)=spval
-          isltyp(i,j)=spval
+          ivgtyp(i,j)=0
+          isltyp(i,j)=0
           hbotd(i,j)=spval
           htopd(i,j)=spval
           hbots(i,j)=spval
           htops(i,j)=spval
           cldefi(i,j)=spval
-          islope(i,j)=spval
+          islope(i,j)=0
           si(i,j)=spval
           lspa(i,j)=spval
           rswinc(i,j)=spval
@@ -946,6 +963,15 @@
       allocate(su_aod550(im,jsta_2l:jend_2u))
       allocate(oc_aod550(im,jsta_2l:jend_2u))
       allocate(bc_aod550(im,jsta_2l:jend_2u))
+      allocate(landfrac(im,jsta_2l:jend_2u))
+      allocate(paha(im,jsta_2l:jend_2u))
+      allocate(pahi(im,jsta_2l:jend_2u))
+      allocate(tecan(im,jsta_2l:jend_2u))
+      allocate(tetran(im,jsta_2l:jend_2u))
+      allocate(tedir(im,jsta_2l:jend_2u))
+      allocate(twa(im,jsta_2l:jend_2u))
+      allocate(fdnsst(im,jsta_2l:jend_2u))
+      allocate(pwat(im,jsta_2l:jend_2u))
 !Initialization
 !$omp parallel do private(i,j)
       do j=jsta_2l,jend_2u
@@ -988,6 +1014,15 @@
           su_aod550(i,j)=spval
           oc_aod550(i,j)=spval
           bc_aod550(i,j)=spval
+          landfrac(i,j)=spval
+          paha(i,j)=spval
+          pahi(i,j)=spval
+          tecan(i,j)=spval
+          tetran(i,j)=spval
+          tedir(i,j)=spval
+          twa(i,j)=spval
+          fdnsst(i,j)=spval
+          pwat(i,j)=spval
         enddo
       enddo
 !
