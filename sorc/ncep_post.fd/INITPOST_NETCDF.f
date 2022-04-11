@@ -883,8 +883,8 @@
       
       print *,me,'max(gdlat)=', maxval(gdlat),  &
                  'max(gdlon)=', maxval(gdlon)
-!     CALL EXCH(gdlat(1,JSTA_2L))
-!     print *,'after call EXCH,me=',me
+      CALL EXCH(gdlat(ISTA_2L,JSTA_2L))
+      print *,'after call EXCH,me=',me
 
 !$omp parallel do private(i,j,ip1)
       do j = jsta, jend_m

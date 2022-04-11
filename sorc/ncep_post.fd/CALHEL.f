@@ -36,6 +36,7 @@
 !> 2005-02-25 | H Chuang        | Add computation for ARW A grid
 !> 2005-07-07 | Binbin Zhou     | Add RSM for A grid  
 !> 2019-10-30 | Bo Cui          | Remove "goto" statement
+!> 2021-09-02 | Bo Cui          | Decompose UPP in X direction          
 !>   
 !> @author Michael Baldwin W/NP2 @date 1994-08-22
       SUBROUTINE CALHEL(DEPTH,UST,VST,HELI,USHR1,VSHR1,USHR6,VSHR6)
