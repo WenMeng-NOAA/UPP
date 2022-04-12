@@ -22,6 +22,7 @@
 !> Date | Programmer | Comments
 !> -----|------------|---------
 !> 2007-04-27 | H Chuang | Initial
+!> 2021-09-02 | Bo Cui   | Decompose UPP in X direction          
 !>   
 !> @author H Chuang @date 2007-04-27
       SUBROUTINE CALPBLREGIME(PBLREGIME)

@@ -25,6 +25,7 @@
 !> 2002-04-24 | Mike Baldwin | WRF Version            
 !> 2019-10-30 | Bo Cui       | Remove "GOTO" Statement
 !> 2021-07-28 | W Meng       | Restriction compuatation from undefined grids
+!> 2021-09-02 | Bo Cui       | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1993-03-15
       SUBROUTINE CALLCL(P1D,T1D,Q1D,PLCL,ZLCL)

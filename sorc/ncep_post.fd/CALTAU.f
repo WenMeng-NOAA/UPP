@@ -21,6 +21,7 @@
 !> 2005-02-23 | H Chuang     | Compute stress for NMM on wind points
 !> 2005-07-07 | Binbin Zhou  | Add RSM stress for A Grid     
 !> 2021-07-26 | W Meng       | Restrict computation from undefined grids
+!> 2021-09-02 | Bo Cui       | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1993-09-01
 

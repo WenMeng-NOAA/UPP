@@ -15,6 +15,7 @@
 !> 1998-06-15 | T Black      | Convesion from 1-D to 2-D
 !> 2000-01-04 | Jim Tuccillo | MPI Version            
 !> 2002-04-24 | Mike Baldwin | WRF Version      
+!> 2021-09-02 | Bo Cui       | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1992-12-24
       SUBROUTINE CALPOT(P1D,T1D,THETA)

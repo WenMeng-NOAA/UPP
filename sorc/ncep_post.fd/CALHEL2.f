@@ -39,6 +39,7 @@
 !> 2005-02-25 | H Chuang        | Add computation for ARW A grid
 !> 2005-07-07 | Binbin Zhou     | Add RSM for A grid  
 !> 2019-09-03 | J Meng          | Modified to compute effective helicity and critical angle
+!> 2021-09-02 | Bo Cui          | Decompose UPP in X direction          
 !>   
 !> @author Michael Baldwin W/NP2 @date 1994-08-22
       SUBROUTINE CALHEL2(LLOW,LUPP,DEPTH,UST,VST,HELI,CANGLE)

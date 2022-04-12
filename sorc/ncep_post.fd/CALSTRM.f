@@ -19,6 +19,7 @@
 !> 1998-06-08 | T Black      | Conversion from 1-D TO 2-D
 !> 2000-01-05 | Jim Tuccillo | MPI Version
 !> 2002-06-13 | Mike Baldwin | WRF Version
+!> 2021-09-02 | Bo Cui          | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1992-12-22
       SUBROUTINE CALSTRM(Z1D,STRM)

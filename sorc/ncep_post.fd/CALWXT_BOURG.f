@@ -44,6 +44,7 @@
 !> 2005-08-24 | G Manikin | added to wrf post
 !> 2007-06-19 | M Iredell | mersenne twister, best practices
 !> 2015-??-?? | S Moorthi | changed random number call and optimization and cleanup
+!> 2021-10-31 | J Meng    | 2D DECOMPOSITION
 !>
 !> Remarks: vertical order of arrays must be layer   1 = top
 !>          and layer lmh = bottom

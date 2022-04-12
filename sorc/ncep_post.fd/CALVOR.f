@@ -21,6 +21,7 @@
 !> 2016-08-05 | S Moorthi    | add zonal filetering
 !> 2019-10-17 | Y Mao        | Skip calculation when U/V is SPVAL
 !> 2020-11-06 | J Meng       | Use UPP_MATH Module
+!> 2022-04-10 | B Cui        | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1992-12-22
       SUBROUTINE CALVOR(UWND,VWND,ABSV)

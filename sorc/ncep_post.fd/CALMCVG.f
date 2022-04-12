@@ -28,6 +28,8 @@
 !> 2005-07-07 | Binbin Zhou  | Add RSM A Grid
 !> 2006-04-25 | H Chuang     | Bug fixes to correctly compute MC at boundaries 
 !> 2021-04-01 | J Meng       | Computation on defined points only
+!> 2021-09-02 | B CUI        | REPLACE EXCH_F to EXCH             
+!> 2021-09-30 | J MENG       | 2D DECOMPOSITION
 !>     
 !> @author Russ Treadon W/NP2 @date 1993-01-22
       SUBROUTINE CALMCVG(Q1D,U1D,V1D,QCNVG)

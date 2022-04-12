@@ -35,6 +35,7 @@
 !> 2015-07-10 | Sarah Lu       | Update to calculate asymetry parameter
 !> 2019-07-25 | Li(Kate) Zhang | Merge Sarah Lu's update for FV3-Chem
 !> 2020-11-10 | Jesse Meng     | Use UPP_PHYSICS Module
+!> 2021-09-02 | Bo Cui         | Decompose UPP in X direction          
 !>     
 !> @author Russ Treadon W/NP2 @date 1992-12-24
       SUBROUTINE CALPW(PW,IDECID)

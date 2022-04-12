@@ -18,6 +18,7 @@
 !> 2002-01-15 | Mike Baldwin | WRF Version
 !> 2005-02-25 | H Chuang     | Add computation for NMM E grid
 !> 2005-07-07 | Binbin Zhou  | Add RSM for A Grid  
+!> 2021-09-02 | Bo Cui       | Decompose UPP in X direction          
 !>
 !> @author Russ Treadon W/NP2 @date 1993-10-11
       SUBROUTINE CALRCH(EL,RICHNO)

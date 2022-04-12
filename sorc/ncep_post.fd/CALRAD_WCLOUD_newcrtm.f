@@ -15,6 +15,7 @@
 !> 2021-01-10 | Wen Meng       | Added checking points for skiping grids with filling value spval
 !> 2021-03-11 | Bo Cui         | improve local arrays memory
 !> 2021-08-31 | Lin Zhu        | added ssmis-f17 channels 15-18 grib2 output 
+!> 2021-09-02 | Bo Cui         | Decompose UPP in X direction          
 !>
 !> @author Chuang @date 2007-01-17       
       SUBROUTINE CALRAD_WCLOUD

@@ -243,7 +243,7 @@
          if (me==0) print*,'DateStr= ',DateStr
          if (me==0) print*,'MODELNAME= ',MODELNAME
          if (me==0) print*,'SUBMODELNAME= ',SUBMODELNAME
-!         if (me==0) print*,'numx= ',numx
+          if (me==0) print*,'numx= ',numx
 !       if(MODELNAME == 'NMM')then
 !        read(5,1114) VTIMEUNITS
 ! 1114   format(a4)
@@ -339,7 +339,7 @@
           print*,'numx= ',numx
         endif
 
-        IF(TRIM(IOFORM) /= 'netcdfpara') THEN
+        IF(TRIM(IOFORM) /= 'netcdfpara' .AND. TRIM(IOFORM) /= 'netcdf' ) THEN
           numx=1
           if(me == 0) print*,'2D decomposition only supports netcdfpara IO.'
           if(me == 0) print*,'Reset numx= ',numx

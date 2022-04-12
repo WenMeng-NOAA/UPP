@@ -10,6 +10,7 @@
 !> Date | Programmer | Comments
 !> -----|------------|---------
 !> 2006-05-04 | M Tsidulko | Initial
+!> 2021-09-02 | Bo Cui     | Decompose UPP in X direction          
 !>   
 !> @author M Tsidulko @date 2006-05-04
       SUBROUTINE CALPBL(PBLRI)
