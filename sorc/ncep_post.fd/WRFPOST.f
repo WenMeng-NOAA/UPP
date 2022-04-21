@@ -345,6 +345,12 @@
           if(me == 0) print*,'Reset numx= ',numx
         ENDIF
 
+        IF(MODELNAME /= 'FV3R' .AND. MODELNAME /= 'GFS') THEN
+          numx=1
+          if(me == 0) print*,'2D decomposition only supports GFS and FV3R.'
+          if(me == 0) print*,'Reset numx= ',numx
+        ENDIF
+
 ! set up pressure level from POSTGPVARS or DEFAULT
         if(kpo == 0) then
 ! use default pressure levels

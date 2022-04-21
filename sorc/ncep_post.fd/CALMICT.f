@@ -30,7 +30,7 @@
 !> 2004-11-10 | Brad Ferrier | Removed cloud fraction algorithm
 !> 2004-11-17 | H Chuang     | WRF VERSION     
 !> 2014-03-11 | Brad Ferrier | Created new & old versions of this subroutine to process new & old versions of the microphysics
-!> 2021-09-02 | Bo Cui          | Decompose UPP in X direction          
+!> 2021-09-02 | Bo Cui       | Decompose UPP in X direction          
 !>
 !> @author Yi Jin W/NP2 @date 2001-08-14
       SUBROUTINE CALMICT_new(P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL,     &
